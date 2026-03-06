@@ -1,0 +1,10 @@
+model_name: model_v1
+states:
+  - baseline_noise
+  - exponential_amplification
+  - linear_transition
+  - plateau
+thresholds:
+  exp_df_threshold: 0.12
+  plateau_df_threshold: 0.03
+deterministic: true
