@@ -1,0 +1,5 @@
+run_id,plate_id,well_id,sample_id,target_id,control_type,ct_estimate,hmm_state_path_compact,amplification_confidence,call_label,qc_status,qc_flags
+run_q4,plate_q4,A01,ntc_control,N1,ntc,2,baseline_noise:1|exponential_amplification:2,0.347,ambiguous,rerun,"[""ntc_contamination"", ""low_confidence""]"
+run_q4,plate_q4,A02,sample_rg1_rep1,N1,sample,,baseline_noise:3,0.0,not_amplified,rerun,"[""low_confidence"", ""replicate_discordance""]"
+run_q4,plate_q4,A03,sample_rg1_rep2,N1,sample,2,baseline_noise:1|exponential_amplification:2,0.313,ambiguous,rerun,"[""low_confidence"", ""replicate_discordance""]"
+run_q4,plate_q4,B01,sample_clean,N1,sample,2,baseline_noise:1|exponential_amplification:2,0.293,ambiguous,review,"[""low_confidence""]"

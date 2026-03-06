@@ -1,0 +1,72 @@
+{
+  "generated_utc": "2026-03-06T07:39:25.631446Z",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python_version": "3.13.6",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD"
+  },
+  "checks": {
+    "integration_tests_passed": true,
+    "contract_tests_passed": true,
+    "deterministic_artifact_hash_match": true,
+    "q6_pass": true
+  },
+  "test_results": [
+    {
+      "command": "C:\\Python313\\python.exe -m pytest tests/integration --basetemp .pytest_tmp/q6_integration",
+      "exit_code": 0,
+      "runtime_seconds": 0.876201,
+      "stdout_tail": ".                                                                        [100%]\n1 passed in 0.11s\n",
+      "stderr_tail": ""
+    },
+    {
+      "command": "C:\\Python313\\python.exe -m pytest tests/contract --basetemp .pytest_tmp/q6_contract",
+      "exit_code": 0,
+      "runtime_seconds": 0.855242,
+      "stdout_tail": ".                                                                        [100%]\n1 passed in 0.11s\n",
+      "stderr_tail": ""
+    }
+  ],
+  "pipeline_runs": {
+    "run_a": {
+      "runtime_seconds": 0.015792,
+      "peak_memory_mb": 0.173458
+    },
+    "run_b": {
+      "runtime_seconds": 0.014144,
+      "peak_memory_mb": 0.166176
+    }
+  },
+  "artifact_hashes": [
+    {
+      "file": "well_calls.csv",
+      "run_a_sha256": "9f38f1653f128eb3f60100a58aea31eee7df248e5c4714eddab9088fc08fa74b",
+      "run_b_sha256": "9f38f1653f128eb3f60100a58aea31eee7df248e5c4714eddab9088fc08fa74b",
+      "match": true
+    },
+    {
+      "file": "rerun_manifest.csv",
+      "run_a_sha256": "4187292353a6bb7c8a4c25e3c7ae03b497a932d839d8a034400a56b5e360e764",
+      "run_b_sha256": "4187292353a6bb7c8a4c25e3c7ae03b497a932d839d8a034400a56b5e360e764",
+      "match": true
+    },
+    {
+      "file": "plate_qc_summary.json",
+      "run_a_sha256": "d84b9600f5e1dfcf9f70483c8e4e205a751e9823c458c66d251b6542ae0ea921",
+      "run_b_sha256": "d84b9600f5e1dfcf9f70483c8e4e205a751e9823c458c66d251b6542ae0ea921",
+      "match": true
+    },
+    {
+      "file": "run_metadata.json",
+      "run_a_sha256": "482750fe5d8861b6604879a83e6fbee74f4501626f5e202ea6f0f4db9f549cfe",
+      "run_b_sha256": "482750fe5d8861b6604879a83e6fbee74f4501626f5e202ea6f0f4db9f549cfe",
+      "match": true
+    },
+    {
+      "file": "report.html",
+      "run_a_sha256": "80fc769dd4f4870855ccb48b476f5c2f24fce4d27d21271873ce2e7c872e4fc1",
+      "run_b_sha256": "80fc769dd4f4870855ccb48b476f5c2f24fce4d27d21271873ce2e7c872e4fc1",
+      "match": true
+    }
+  ]
+}

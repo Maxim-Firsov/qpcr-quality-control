@@ -1,0 +1,33 @@
+{
+  "data_validation_summary": {
+    "eligible_rows": 12,
+    "error_counts": {},
+    "rejected_rows": 0
+  },
+  "execution_mode": "curve_csv",
+  "input_hashes": {
+    "curve_csv_sha256": "47eee944454cb6a2984577fbfeef0e4fc657c2845cb79f7819d0a20dd6ea72c8",
+    "plate_meta_csv_sha256": "95067279252d42bdda36eae86bb4da48fc5acc69d0ea86b79776c78c7a0bd3a6",
+    "rdml_sha256": ""
+  },
+  "input_snapshot_date": "1970-01-01",
+  "inputs": {
+    "curve_csv": "C:\\Code\\GitPortfolio\\qpcr-hmm-qc\\data\\fixtures\\q4_curves.csv",
+    "plate_meta_csv": "C:\\Code\\GitPortfolio\\qpcr-hmm-qc\\data\\fixtures\\q4_plate_meta.csv",
+    "rdml": ""
+  },
+  "model_config": {
+    "hash": "46c883959947c3b05d72ee515989d6b18ed9399719bc341dcb98cb39593dad4c",
+    "name": "model_v1"
+  },
+  "record_counts": {
+    "eligible_rows": 12,
+    "normalized_rows": 12,
+    "raw_rows": 12,
+    "rejected_rows": 0
+  },
+  "schema_version": "v0.1.0",
+  "timing_seconds": 0.0,
+  "tool_version": "0.1.0",
+  "warnings": []
+}

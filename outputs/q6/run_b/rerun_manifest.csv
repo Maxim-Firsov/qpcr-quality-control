@@ -1,0 +1,4 @@
+plate_id,well_id,target_id,sample_id,rerun_reason,evidence_score,recommended_action
+plate_q4,A01,N1,ntc_control,"ntc_contamination,low_confidence",0.347,repeat_well_qpcr
+plate_q4,A02,N1,sample_rg1_rep1,"low_confidence,replicate_discordance",0.0,repeat_well_qpcr
+plate_q4,A03,N1,sample_rg1_rep2,"low_confidence,replicate_discordance",0.313,repeat_well_qpcr

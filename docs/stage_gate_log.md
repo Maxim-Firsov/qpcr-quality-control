@@ -98,3 +98,16 @@ Evidence paths:
 - `outputs/q5/contract_test_report.json`
 Summary:
 - Extended report sections to include overview/per-plate/rerun rationale, added metadata input hash fields, enforced contract checks, and generated Q5 contract evidence with all checks passing.
+
+---
+
+Date (UTC): `2026-03-06T07:38:30Z`
+Gate: `Q6`
+Decision: `PASS`
+Evidence paths:
+- `RESULTS.md`
+- `VALIDATION.md`
+- `tests/integration/test_pipeline_cli.py`
+- `outputs/q6/reproducibility_report.json`
+Summary:
+- Added benchmark and validation documentation with evidence-backed metrics, produced deterministic repeat-run hash evidence, and verified integration + contract + full suite checks required for release-candidate readiness.
