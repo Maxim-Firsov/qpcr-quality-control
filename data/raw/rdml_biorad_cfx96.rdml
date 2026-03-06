@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdml version="1.2">
+  <instrument id="BioRad_CFX96" />
+  <experiment id="exp_cfx96">
+    <run id="run_cfx96">
+      <react id="B02">
+        <sample id="sample_beta" />
+        <dye id="N2" />
+        <data cyc="1" fluor="0.08" />
+        <data cyc="2" fluor="0.19" />
+        <data cyc="3" fluor="0.43" />
+      </react>
+    </run>
+  </experiment>
+</rdml>

@@ -1,0 +1,47 @@
+{
+  "generated_utc": "2026-03-06T07:22:05.804139Z",
+  "manifest_path": "data/raw/manifest.csv",
+  "checks": {
+    "included_file_count": 3,
+    "distinct_source_count": 3,
+    "distinct_instrument_count": 3,
+    "sha256_mismatch_count": 0,
+    "fatal_parse_errors": 0,
+    "q1_pass": true
+  },
+  "files": [
+    {
+      "file_name": "rdml_abi_7500.rdml",
+      "exists": true,
+      "source_url": "https://example.org/rdml/abi-7500-demo",
+      "sha256_expected": "3362b358d2a5cc70ab4727e00c52d6bb0d6604ef3a70c606a939bd06c474deaf",
+      "sha256_actual": "3362b358d2a5cc70ab4727e00c52d6bb0d6604ef3a70c606a939bd06c474deaf",
+      "sha256_match": true,
+      "run_id": "run_abi_7500",
+      "instrument": "ABI_7500",
+      "curve_row_count": 3
+    },
+    {
+      "file_name": "rdml_biorad_cfx96.rdml",
+      "exists": true,
+      "source_url": "https://example.org/rdml/biorad-cfx96-demo",
+      "sha256_expected": "3c9668f62a8f8b151c87ab2b3238de0fa476487ff4523252a905adc1e9dd5238",
+      "sha256_actual": "3c9668f62a8f8b151c87ab2b3238de0fa476487ff4523252a905adc1e9dd5238",
+      "sha256_match": true,
+      "run_id": "run_cfx96",
+      "instrument": "BioRad_CFX96",
+      "curve_row_count": 3
+    },
+    {
+      "file_name": "rdml_roche_lc480.rdml",
+      "exists": true,
+      "source_url": "https://example.org/rdml/roche-lc480-demo",
+      "sha256_expected": "2e6c85b782f0be1f9daad29ee07ba3d568e46b6094a838dd36fd7be5d70fe51a",
+      "sha256_actual": "2e6c85b782f0be1f9daad29ee07ba3d568e46b6094a838dd36fd7be5d70fe51a",
+      "sha256_match": true,
+      "run_id": "run_lc480",
+      "instrument": "Roche_LightCycler_480",
+      "curve_row_count": 3
+    }
+  ]
+}

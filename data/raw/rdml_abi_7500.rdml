@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdml version="1.2">
+  <instrument id="ABI_7500" />
+  <experiment id="exp_abi_7500">
+    <run id="run_abi_7500">
+      <react id="A01">
+        <sample id="sample_alpha" />
+        <dye id="N1" />
+        <data cyc="1" fluor="0.10" />
+        <data cyc="2" fluor="0.24" />
+        <data cyc="3" fluor="0.52" />
+      </react>
+    </run>
+  </experiment>
+</rdml>

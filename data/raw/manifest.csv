@@ -1,1 +1,4 @@
 file_name,source_url,acquired_utc,sha256,license_note,status
+rdml_abi_7500.rdml,https://example.org/rdml/abi-7500-demo,2026-03-06T07:00:00Z,3362b358d2a5cc70ab4727e00c52d6bb0d6604ef3a70c606a939bd06c474deaf,synthetic-fixture-for-parser-validation,included
+rdml_biorad_cfx96.rdml,https://example.org/rdml/biorad-cfx96-demo,2026-03-06T07:00:00Z,3c9668f62a8f8b151c87ab2b3238de0fa476487ff4523252a905adc1e9dd5238,synthetic-fixture-for-parser-validation,included
+rdml_roche_lc480.rdml,https://example.org/rdml/roche-lc480-demo,2026-03-06T07:00:00Z,2e6c85b782f0be1f9daad29ee07ba3d568e46b6094a838dd36fd7be5d70fe51a,synthetic-fixture-for-parser-validation,included

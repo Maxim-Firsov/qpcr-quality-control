@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdml version="1.2">
+  <instrument id="Roche_LightCycler_480" />
+  <experiment id="exp_lc480">
+    <run id="run_lc480">
+      <react id="C03">
+        <sample id="sample_gamma" />
+        <dye id="ORF1ab" />
+        <data cyc="1" fluor="0.05" />
+        <data cyc="2" fluor="0.13" />
+        <data cyc="3" fluor="0.37" />
+      </react>
+    </run>
+  </experiment>
+</rdml>
