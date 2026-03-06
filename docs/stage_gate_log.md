@@ -69,3 +69,17 @@ Evidence paths:
 - `outputs/q3/runtime_benchmark.json`
 Summary:
 - Locked inference thresholds to `model_v1`, added deterministic-model unit coverage, and produced benchmark evidence confirming state-path emission for all eligible curves, repeat-run determinism, and runtime target compliance.
+
+---
+
+Date (UTC): `2026-03-06T07:32:54Z`
+Gate: `Q4`
+Decision: `PASS`
+Evidence paths:
+- `src/core/qc_rules.py`
+- `tests/unit/test_qc_rules.py`
+- `outputs/q4/well_calls.csv`
+- `outputs/q4/rerun_manifest.csv`
+- `outputs/q4/q4_check_report.json`
+Summary:
+- Added replicate discordance and rerun decision logic, generated full fixture plate outputs, and confirmed three synthetic failure cases with explicit rerun reasons in manifest output.

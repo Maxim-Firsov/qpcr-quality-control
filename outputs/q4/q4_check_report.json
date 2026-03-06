@@ -1,0 +1,15 @@
+{
+  "generated_utc": "2026-03-06T07:32:54.962677Z",
+  "checks": {
+    "well_calls_exists": true,
+    "rerun_manifest_exists": true,
+    "synthetic_failure_cases_detected": 3,
+    "at_least_three_failure_cases": true,
+    "rerun_decisions_have_explicit_reason": true,
+    "q4_pass": true
+  },
+  "rerun_summary": {
+    "rerun_rows": 3,
+    "rerun_manifest_rows": 3
+  }
+}

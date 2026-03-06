@@ -61,13 +61,6 @@ def apply_qc_rules(
         else:
             call_label = "not_amplified"
 
-        if "ntc_contamination" in flags:
-            qc_status = "rerun"
-        elif flags:
-            qc_status = "review"
-        else:
-            qc_status = "pass"
-
         ct_estimate = None
         for row in rows:
             if row["state"] == "exponential_amplification":
@@ -86,10 +79,42 @@ def apply_qc_rules(
                 "hmm_state_path_compact": _compact_state_path(states),
                 "amplification_confidence": round(avg_conf, 3),
                 "call_label": call_label,
-                "qc_status": qc_status,
+                "qc_status": "pass",
                 "qc_flags": json.dumps(flags),
+                "replicate_group": metadata.get("replicate_group", ""),
             }
         )
+
+    # Replicate-discordance check is applied after first-pass labels are assigned.
+    replicate_groups: dict[tuple[str, str, str], list[dict]] = defaultdict(list)
+    for call in calls:
+        if call["control_type"] != "sample":
+            continue
+        replicate_group = str(call.get("replicate_group", "")).strip()
+        if not replicate_group:
+            continue
+        key = (call["plate_id"], call["target_id"], replicate_group)
+        replicate_groups[key].append(call)
+
+    for _, group in replicate_groups.items():
+        labels = {call["call_label"] for call in group}
+        if len(group) < 2 or len(labels) <= 1:
+            continue
+        for call in group:
+            flags = json.loads(call["qc_flags"])
+            if "replicate_discordance" not in flags:
+                flags.append("replicate_discordance")
+            call["qc_flags"] = json.dumps(flags)
+
+    for call in calls:
+        flags = json.loads(call["qc_flags"])
+        if "ntc_contamination" in flags or "replicate_discordance" in flags:
+            call["qc_status"] = "rerun"
+        elif flags:
+            call["qc_status"] = "review"
+        else:
+            call["qc_status"] = "pass"
+        call.pop("replicate_group", None)
 
     calls.sort(key=lambda r: (r["run_id"], r["plate_id"], r["well_id"], r["target_id"]))
     return calls

@@ -1,0 +1,13 @@
+run_id,plate_id,well_id,sample_id,target_id,cycle,fluorescence
+run_q4,plate_q4,A01,ntc_control,N1,1,0.10
+run_q4,plate_q4,A01,ntc_control,N1,2,0.28
+run_q4,plate_q4,A01,ntc_control,N1,3,0.62
+run_q4,plate_q4,A02,sample_rg1_rep1,N1,1,0.09
+run_q4,plate_q4,A02,sample_rg1_rep1,N1,2,0.09
+run_q4,plate_q4,A02,sample_rg1_rep1,N1,3,0.09
+run_q4,plate_q4,A03,sample_rg1_rep2,N1,1,0.10
+run_q4,plate_q4,A03,sample_rg1_rep2,N1,2,0.26
+run_q4,plate_q4,A03,sample_rg1_rep2,N1,3,0.57
+run_q4,plate_q4,B01,sample_clean,N1,1,0.08
+run_q4,plate_q4,B01,sample_clean,N1,2,0.24
+run_q4,plate_q4,B01,sample_clean,N1,3,0.52

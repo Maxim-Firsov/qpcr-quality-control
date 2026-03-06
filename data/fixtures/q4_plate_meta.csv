@@ -1,0 +1,5 @@
+plate_id,well_id,control_type,replicate_group
+plate_q4,A01,ntc,control
+plate_q4,A02,sample,rg1
+plate_q4,A03,sample,rg1
+plate_q4,B01,sample,rg2

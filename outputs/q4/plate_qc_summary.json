@@ -1,0 +1,22 @@
+{
+  "generated_at_utc": "1970-01-01T00:00:00Z",
+  "global_counts": {
+    "pass": 0,
+    "rerun": 3,
+    "review": 1
+  },
+  "plates": [
+    {
+      "edge_effect_alert": false,
+      "ntc_contamination_count": 1,
+      "pass_count": 0,
+      "plate_id": "plate_q4",
+      "plate_status": "rerun",
+      "replicate_discordance_count": 2,
+      "rerun_count": 3,
+      "review_count": 1,
+      "well_total": 4
+    }
+  ],
+  "schema_version": "v0.1.0"
+}
