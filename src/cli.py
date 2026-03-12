@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import time
 from datetime import datetime, UTC
 from pathlib import Path
@@ -54,6 +55,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--plate-meta-csv", required=False, help="Optional plate metadata CSV path.")
     parser.add_argument("--outdir", required=True, help="Output directory.")
     parser.add_argument("--min-cycles", type=int, default=3, help="Minimum cycles per well-target.")
+    parser.add_argument(
+        "--allow-empty-run",
+        action="store_true",
+        help="Write empty outputs instead of failing when all rows are rejected during validation.",
+    )
     return parser.parse_args(argv)
 
 
@@ -107,6 +113,12 @@ def run_pipeline(args: argparse.Namespace) -> dict:
 
     normalized = normalize_rows(raw)
     eligible, rejected, validation_summary = validate_rows(normalized, min_cycles=args.min_cycles)
+    allow_empty_run = bool(getattr(args, "allow_empty_run", False))
+    if not eligible and not allow_empty_run:
+        raise ValueError(
+            "No eligible well-target curves remained after validation. "
+            "Use --allow-empty-run to emit empty outputs for fully rejected inputs."
+        )
     features = build_features(eligible)
     model_config = load_model_config()
     inferred = infer_state_paths(features, model_config_path=model_config["path"])
@@ -179,9 +191,13 @@ def run_pipeline(args: argparse.Namespace) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = parse_args(argv)
-    run_pipeline(args)
-    return 0
+    try:
+        args = parse_args(argv)
+        run_pipeline(args)
+        return 0
+    except ValueError as exc:
+        print(f"qpcr-quality-control: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

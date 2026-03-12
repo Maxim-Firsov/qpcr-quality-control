@@ -53,6 +53,8 @@ Run on canonical CSV input:
 python -m src.cli --curve-csv data\fixtures\q4_curves.csv --plate-meta-csv data\fixtures\q4_plate_meta.csv --outdir outputs\run_csv --min-cycles 3
 ```
 
+By default the CLI fails with a non-zero exit if validation rejects every well-target curve. Use `--allow-empty-run` only when your surrounding workflow explicitly wants empty-but-audited outputs from fully rejected inputs.
+
 ## Outputs
 
 Each run writes:
@@ -94,6 +96,7 @@ powershell -ExecutionPolicy Bypass -File scripts\deep_sweep.ps1
 - RDML parsing covers common fixture patterns and aliases, not every vendor-specific export edge case
 - The report is intentionally static and lightweight rather than interactive
 - The QC layer is deterministic and explainable, but not statistically calibrated against external truth datasets
+- Plate geometry is still inferred from the current implementation rather than configured explicitly
 
 ## License
 

@@ -2,6 +2,8 @@ import csv
 import json
 from argparse import Namespace
 
+import pytest
+
 from src.cli import run_pipeline
 
 
@@ -69,3 +71,61 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert metadata["timing_seconds"] >= 0.0
     assert metadata["input_snapshot_date"] != "1970-01-01"
+
+
+def test_pipeline_raises_when_all_rows_are_rejected(tmp_path):
+    curve_csv = tmp_path / "short.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "run_id": "r1",
+                "plate_id": "p1",
+                "well_id": "A1",
+                "sample_id": "sample1",
+                "target_id": "target1",
+                "cycle": 1,
+                "fluorescence": 0.1,
+            }
+        )
+
+    with pytest.raises(ValueError, match="No eligible well-target curves remained after validation"):
+        run_pipeline(Namespace(curve_csv=str(curve_csv), rdml=None, plate_meta_csv=None, outdir=str(tmp_path / "out"), min_cycles=3))
+
+
+def test_pipeline_can_emit_empty_outputs_when_allow_empty_run_is_enabled(tmp_path):
+    curve_csv = tmp_path / "short.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "run_id": "r1",
+                "plate_id": "p1",
+                "well_id": "A1",
+                "sample_id": "sample1",
+                "target_id": "target1",
+                "cycle": 1,
+                "fluorescence": 0.1,
+            }
+        )
+
+    summary = run_pipeline(
+        Namespace(
+            curve_csv=str(curve_csv),
+            rdml=None,
+            plate_meta_csv=None,
+            outdir=str(tmp_path / "out"),
+            min_cycles=3,
+            allow_empty_run=True,
+        )
+    )
+
+    assert summary == {"well_calls": 0, "rerun_manifest": 0, "plate_count": 0}
