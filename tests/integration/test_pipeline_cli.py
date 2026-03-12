@@ -64,3 +64,8 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
 
     summary = json.loads((outdir / "plate_qc_summary.json").read_text(encoding="utf-8"))
     assert summary["schema_version"] == "v0.1.0"
+    assert summary["generated_at_utc"].endswith("Z")
+
+    metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["timing_seconds"] >= 0.0
+    assert metadata["input_snapshot_date"] != "1970-01-01"

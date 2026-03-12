@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import time
+from datetime import datetime, UTC
 from pathlib import Path
 
 from src.core.aggregate import summarize_plates
@@ -84,6 +86,8 @@ def _hash_input_path(path_text: str) -> str:
 
 
 def run_pipeline(args: argparse.Namespace) -> dict:
+    started = time.perf_counter()
+    generated_at_utc = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
@@ -108,7 +112,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     inferred = infer_state_paths(features, model_config_path=model_config["path"])
     plate_meta = load_plate_meta_csv(args.plate_meta_csv) if args.plate_meta_csv else {}
     well_calls = apply_qc_rules(inferred, plate_meta=plate_meta)
-    plate_summary = summarize_plates(well_calls)
+    plate_summary = summarize_plates(well_calls, generated_at_utc=generated_at_utc)
 
     rerun_manifest = []
     for row in well_calls:
@@ -128,6 +132,11 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             }
         )
 
+    elapsed_seconds = round(time.perf_counter() - started, 6)
+    warnings = []
+    if rejected:
+        warnings.append(f"rejected_rows_present:{len(rejected)}")
+
     metadata = {
         "schema_version": "v0.1.0",
         "tool_version": "0.1.0",
@@ -142,7 +151,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             "rdml_sha256": _hash_input_path(str(rdml_arg or "")),
             "plate_meta_csv_sha256": _hash_input_path(str(args.plate_meta_csv or "")),
         },
-        "input_snapshot_date": "1970-01-01",
+        "input_snapshot_date": generated_at_utc[:10],
         "record_counts": {
             "raw_rows": len(raw),
             "normalized_rows": len(normalized),
@@ -152,8 +161,8 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         "model_config": {"name": "model_v1", "hash": model_config["sha256"]},
         # Validation summary is preserved in metadata so rejected-row reasons remain traceable.
         "data_validation_summary": validation_summary,
-        "timing_seconds": 0.0,
-        "warnings": [],
+        "timing_seconds": elapsed_seconds,
+        "warnings": warnings,
     }
 
     write_csv(outdir / "well_calls.csv", well_calls, WELL_CALL_FIELDS)

@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from typing import Iterable
 
 
-def summarize_plates(well_calls: Iterable[dict]) -> dict:
+def summarize_plates(well_calls: Iterable[dict], generated_at_utc: str) -> dict:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for call in well_calls:
         grouped[call["plate_id"]].append(call)
@@ -46,7 +46,7 @@ def summarize_plates(well_calls: Iterable[dict]) -> dict:
     plates.sort(key=lambda p: p["plate_id"])
     return {
         "schema_version": "v0.1.0",
-        "generated_at_utc": "1970-01-01T00:00:00Z",
+        "generated_at_utc": generated_at_utc,
         "plates": plates,
         "global_counts": {
             "pass": global_counts["pass"],
