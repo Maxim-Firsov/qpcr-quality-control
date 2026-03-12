@@ -29,6 +29,25 @@ def _extract_value(node: ET.Element, *candidates: str) -> str:
     return ""
 
 
+def _find_plate_id(root: ET.Element, fallback: str) -> str:
+    plate = _find_first(root, "plate")
+    if plate is None:
+        return fallback
+    return _extract_value(plate, "id", "name") or fallback
+
+
+def _find_react_well_id(react: ET.Element) -> str:
+    direct = str(react.attrib.get("id", "")).strip().upper()
+    if direct:
+        return direct
+    position_node = _find_first(react, "well")
+    if position_node is None:
+        position_node = _find_first(react, "position")
+    if position_node is None:
+        return ""
+    return (_extract_value(position_node, "id", "well") or (position_node.text or "")).strip().upper()
+
+
 def extract_rdml_metadata(path: str | Path) -> dict:
     source = Path(path)
     try:
@@ -46,7 +65,9 @@ def extract_rdml_metadata(path: str | Path) -> dict:
     if instrument_node is not None:
         instrument = _extract_value(instrument_node, "id", "name", "model") or instrument
 
-    return {"run_id": run_id, "instrument": instrument}
+    plate_id = _find_plate_id(root, fallback=run_id)
+
+    return {"run_id": run_id, "instrument": instrument, "plate_id": plate_id}
 
 
 def load_rdml(path: str | Path) -> list[dict]:
@@ -69,25 +90,33 @@ def load_rdml_with_report(path: str | Path) -> tuple[list[dict], dict]:
     for react in root.iter():
         if _local_name(react.tag) != "react":
             continue
-        well_id = str(react.attrib.get("id", "")).strip().upper()
+        well_id = _find_react_well_id(react)
         if not well_id:
             continue
 
         sample_node = _find_first(react, "sample")
-        sample_id = sample_node.attrib.get("id", "unknown_sample") if sample_node is not None else "unknown_sample"
+        sample_id = (
+            _extract_value(sample_node, "id", "name", "sample")
+            if sample_node is not None
+            else "unknown_sample"
+        ) or "unknown_sample"
 
         target_node = _find_first(react, "dye")
         if target_node is None:
             target_node = _find_first(react, "target")
-        target_id = target_node.attrib.get("id", "unknown_target") if target_node is not None else "unknown_target"
+        target_id = (
+            _extract_value(target_node, "id", "name", "dye", "target")
+            if target_node is not None
+            else "unknown_target"
+        ) or "unknown_target"
 
         for data_node in react.iter():
             if _local_name(data_node.tag) != "data":
                 continue
             total_data_nodes += 1
             # RDML exports can vary by vendor, so common attribute aliases are accepted.
-            cycle_value = _extract_value(data_node, "cyc", "cycle")
-            fluor_value = _extract_value(data_node, "fluor", "fluorescence")
+            cycle_value = _extract_value(data_node, "cyc", "cycle", "cycNr")
+            fluor_value = _extract_value(data_node, "fluor", "fluorescence", "fluo")
             if not cycle_value or not fluor_value:
                 malformed_reason_counts["missing_fields"] += 1
                 continue
@@ -100,12 +129,13 @@ def load_rdml_with_report(path: str | Path) -> tuple[list[dict], dict]:
             rows.append(
                 {
                     "run_id": metadata["run_id"],
-                    "plate_id": metadata["run_id"],
+                    "plate_id": metadata["plate_id"],
                     "well_id": well_id,
                     "sample_id": sample_id,
                     "target_id": target_id,
                     "cycle": cycle,
                     "fluorescence": fluorescence,
+                    "instrument": metadata["instrument"],
                 }
             )
 
@@ -115,6 +145,7 @@ def load_rdml_with_report(path: str | Path) -> tuple[list[dict], dict]:
     report = {
         "file_name": source.name,
         "run_id": metadata["run_id"],
+        "plate_id": metadata["plate_id"],
         "instrument": metadata["instrument"],
         "total_data_nodes": total_data_nodes,
         "parsed_rows": len(rows),
