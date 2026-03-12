@@ -7,11 +7,13 @@ def test_summarize_plates_counts_statuses():
     calls = [
         {
             "plate_id": "p1",
+            "well_id": "B02",
             "qc_status": "pass",
             "qc_flags": json.dumps([]),
         },
         {
             "plate_id": "p1",
+            "well_id": "A01",
             "qc_status": "rerun",
             "qc_flags": json.dumps(["ntc_contamination"]),
         },

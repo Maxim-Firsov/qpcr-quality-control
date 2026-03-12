@@ -7,6 +7,9 @@ from collections import defaultdict
 from statistics import mean
 from typing import Iterable
 
+LATE_CT_THRESHOLD = 35.0
+LOW_SIGNAL_THRESHOLD = 0.15
+
 
 def _compact_state_path(states: list[str]) -> str:
     if not states:
@@ -23,6 +26,43 @@ def _compact_state_path(states: list[str]) -> str:
         count = 1
     out.append(f"{current}:{count}")
     return "|".join(out)
+
+
+def _estimate_ct(rows: list[dict], amplified: bool) -> float | None:
+    if not amplified:
+        return None
+
+    max_signal = max(float(row.get("f_adj", 0.0)) for row in rows)
+    threshold = max(0.2, max_signal * 0.35)
+    previous_signal = float(rows[0].get("f_adj", 0.0))
+    previous_cycle = float(rows[0]["cycle"])
+    for row in rows[1:]:
+        signal = float(row.get("f_adj", 0.0))
+        cycle = float(row["cycle"])
+        if signal >= threshold and previous_signal < threshold:
+            signal_delta = signal - previous_signal
+            if signal_delta <= 0:
+                return cycle
+            cycle_fraction = (threshold - previous_signal) / signal_delta
+            return round(previous_cycle + cycle_fraction, 3)
+        previous_signal = signal
+        previous_cycle = cycle
+
+    for row in rows:
+        if row["state"] == "exponential_amplification":
+            return float(row["cycle"])
+    return None
+
+
+def _is_edge_well(well_id: str) -> bool:
+    if len(well_id) < 3:
+        return False
+    row = well_id[0].upper()
+    try:
+        col = int(well_id[1:])
+    except ValueError:
+        return False
+    return row in {"A", "H", "P"} or col in {1, 12, 24}
 
 
 def apply_qc_rules(
@@ -46,6 +86,7 @@ def apply_qc_rules(
         metadata = plate_meta.get((plate_id, well_id), {})
         control_type = metadata.get("control_type", "sample")
         sample_id = rows[0].get("sample_id", "unknown_sample")
+        max_signal = max(float(row.get("f_adj", 0.0)) for row in rows)
 
         amplified = any(state == "exponential_amplification" for state in states)
         flags: list[str] = []
@@ -53,6 +94,8 @@ def apply_qc_rules(
             flags.append("ntc_contamination")
         if avg_conf < confidence_threshold:
             flags.append("low_confidence")
+        if max_signal < LOW_SIGNAL_THRESHOLD:
+            flags.append("low_signal_curve")
 
         if amplified and "low_confidence" not in flags:
             call_label = "amplified"
@@ -61,11 +104,22 @@ def apply_qc_rules(
         else:
             call_label = "not_amplified"
 
-        ct_estimate = None
-        for row in rows:
-            if row["state"] == "exponential_amplification":
-                ct_estimate = row["cycle"]
-                break
+        ct_estimate = _estimate_ct(rows, amplified=amplified)
+        if ct_estimate is not None and ct_estimate >= LATE_CT_THRESHOLD:
+            flags.append("late_amplification")
+        if control_type == "positive_control" and call_label != "amplified":
+            flags.append("positive_control_failure")
+        if _is_edge_well(well_id) and ("late_amplification" in flags or "low_confidence" in flags):
+            flags.append("edge_well_review")
+
+        confidence = avg_conf
+        if amplified and ct_estimate is not None and ct_estimate < LATE_CT_THRESHOLD:
+            confidence += 0.05
+        if "late_amplification" in flags:
+            confidence -= 0.15
+        if "low_signal_curve" in flags:
+            confidence -= 0.1
+        confidence = round(min(1.0, max(0.0, confidence)), 3)
 
         calls.append(
             {
@@ -77,7 +131,7 @@ def apply_qc_rules(
                 "control_type": control_type,
                 "ct_estimate": ct_estimate,
                 "hmm_state_path_compact": _compact_state_path(states),
-                "amplification_confidence": round(avg_conf, 3),
+                "amplification_confidence": confidence,
                 "call_label": call_label,
                 "qc_status": "pass",
                 "qc_flags": json.dumps(flags),
@@ -108,9 +162,13 @@ def apply_qc_rules(
 
     for call in calls:
         flags = json.loads(call["qc_flags"])
-        if "ntc_contamination" in flags or "replicate_discordance" in flags:
+        if (
+            "ntc_contamination" in flags
+            or "replicate_discordance" in flags
+            or "positive_control_failure" in flags
+        ):
             call["qc_status"] = "rerun"
-        elif flags:
+        elif "late_amplification" in flags or "low_confidence" in flags or "edge_well_review" in flags or "low_signal_curve" in flags:
             call["qc_status"] = "review"
         else:
             call["qc_status"] = "pass"
