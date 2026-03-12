@@ -35,3 +35,4 @@ def test_runtime_benchmark_96_well_fixture_stays_fast(tmp_path):
     metadata_path = outdir / "run_metadata.json"
     timing_text = metadata_path.read_text(encoding="utf-8")
     assert '"timing_seconds":' in timing_text
+    assert '"peak_memory_mb":' in timing_text

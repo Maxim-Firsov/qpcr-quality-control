@@ -80,6 +80,7 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
 
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert metadata["timing_seconds"] >= 0.0
+    assert metadata["peak_memory_mb"] >= 0.0
     assert metadata["input_snapshot_date"] != "1970-01-01"
 
 

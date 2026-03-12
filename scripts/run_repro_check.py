@@ -26,6 +26,7 @@ def _normalized_json(path: Path) -> str:
     if path.name == "run_metadata.json":
         payload = dict(payload)
         payload.pop("timing_seconds", None)
+        payload.pop("peak_memory_mb", None)
         payload.pop("input_snapshot_date", None)
     if path.name == "plate_qc_summary.json":
         payload = dict(payload)
@@ -61,8 +62,28 @@ def main() -> int:
         _make_fixture(curve)
         out1 = temp_dir / "out1"
         out2 = temp_dir / "out2"
-        run_pipeline(Namespace(curve_csv=str(curve), plate_meta_csv=None, outdir=str(out1), min_cycles=3))
-        run_pipeline(Namespace(curve_csv=str(curve), plate_meta_csv=None, outdir=str(out2), min_cycles=3))
+        run_pipeline(
+            Namespace(
+                curve_csv=str(curve),
+                rdml=None,
+                plate_meta_csv=None,
+                outdir=str(out1),
+                min_cycles=3,
+                allow_empty_run=False,
+                plate_schema="auto",
+            )
+        )
+        run_pipeline(
+            Namespace(
+                curve_csv=str(curve),
+                rdml=None,
+                plate_meta_csv=None,
+                outdir=str(out2),
+                min_cycles=3,
+                allow_empty_run=False,
+                plate_schema="auto",
+            )
+        )
 
         deterministic_files = ["well_calls.csv", "rerun_manifest.csv"]
         for name in deterministic_files:

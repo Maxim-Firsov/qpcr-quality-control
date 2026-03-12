@@ -18,6 +18,7 @@ than a clinically validated production system.
 - QC rules for NTC contamination, replicate discordance, positive-control failure, late amplification, low-signal curves, and edge-well review
 - Plate-level summary with geometry-aware edge-effect alerting for `96`, `384`, or `auto` mode
 - Static HTML report plus auditable run metadata with input hashes and measured runtime
+- `run_metadata.json` now records both runtime and peak traced memory
 - Unit, integration, and contract tests with a lightweight runtime benchmark fixture
 
 ## Scope and Constraints
@@ -69,7 +70,7 @@ Each run writes:
 - `run_metadata.json`
 - `report.html`
 
-`run_metadata.json` includes execution mode, input hashes, validation summary, warning list, and measured runtime in seconds.
+`run_metadata.json` includes execution mode, input hashes, validation summary, warning list, measured runtime in seconds, and peak traced memory in MB.
 
 Schema expectations are documented in `docs/io_contract.md` and enforced in `tests/contract/test_output_contract.py`.
 

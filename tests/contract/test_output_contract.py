@@ -87,6 +87,7 @@ def test_output_contract_required_columns_and_keys(tmp_path):
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert "hash" in metadata["model_config"]
     assert metadata["plate_schema"] == "auto"
+    assert "peak_memory_mb" in metadata
     for key in ["curve_csv_sha256", "rdml_sha256", "plate_meta_csv_sha256"]:
         assert key in metadata["input_hashes"]
 

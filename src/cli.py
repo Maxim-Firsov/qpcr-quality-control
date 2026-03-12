@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 import time
+import tracemalloc
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -98,6 +99,7 @@ def _hash_input_path(path_text: str) -> str:
 
 
 def run_pipeline(args: argparse.Namespace) -> dict:
+    tracemalloc.start()
     started = time.perf_counter()
     generated_at_utc = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     outdir = Path(args.outdir)
@@ -150,7 +152,10 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             }
         )
 
+    current_bytes, peak_bytes = tracemalloc.get_traced_memory()
+    tracemalloc.stop()
     elapsed_seconds = round(time.perf_counter() - started, 6)
+    peak_memory_mb = round(peak_bytes / (1024 * 1024), 6)
     warnings = []
     if rejected:
         warnings.append(f"rejected_rows_present:{len(rejected)}")
@@ -181,6 +186,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         # Validation summary is preserved in metadata so rejected-row reasons remain traceable.
         "data_validation_summary": validation_summary,
         "timing_seconds": elapsed_seconds,
+        "peak_memory_mb": peak_memory_mb,
         "warnings": warnings,
     }
 
