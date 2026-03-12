@@ -1,11 +1,33 @@
 # qpcr-quality-control
 
+[![CI](https://github.com/Maxim-Firsov/qpcr-quality-control/actions/workflows/ci.yml/badge.svg)](https://github.com/Maxim-Firsov/qpcr-quality-control/actions/workflows/ci.yml)
+
 `qpcr-quality-control` is a deterministic local quality-control pipeline for qPCR amplification curves.
 It ingests RDML or canonical curve CSV, performs fast forward-only Viterbi state decoding, applies
 lightweight QC rules, and emits auditable CSV/JSON/HTML outputs without requiring hosted services.
 
 The project is positioned as an explainable, reproducible portfolio-grade pipeline prototype rather
 than a clinically validated production system.
+
+## Quick Review Path
+
+1. Run the public demo:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\run_public_demo.ps1 -Fixture stepone_std.rdml -PlateSchema 96
+```
+
+2. Inspect the compact orchestration artifact:
+
+- `outputs/demo_stepone_std/summary.json`
+
+3. Inspect the reviewer-facing report:
+
+- `outputs/demo_stepone_std/report.html`
+
+4. Inspect the public-reference comparison output when `PCRedux_1.2-1.tar.gz` is present locally:
+
+- `outputs/demo_stepone_std/pcrredux_compare.json`
 
 ## Features
 
