@@ -53,3 +53,31 @@ def test_load_rdml_supports_common_alias_fields(tmp_path):
     assert rows[0]["sample_id"] == "sample_alias"
     assert rows[0]["target_id"] == "TARGET_X"
     assert rows[1]["plate_id"] == "plate_alias"
+
+
+def test_load_rdml_reads_public_zip_container_fixture():
+    rows = load_rdml("data/raw/stepone_std.rdml")
+    metadata = extract_rdml_metadata("data/raw/stepone_std.rdml")
+
+    assert len(rows) > 0
+    assert metadata["run_id"]
+    assert rows[0]["cycle"] >= 1
+    assert rows[0]["well_id"]
+
+
+def test_load_rdml_reads_lc96_public_fixture():
+    rows = load_rdml("data/raw/lc96_bACTXY.rdml")
+    metadata = extract_rdml_metadata("data/raw/lc96_bACTXY.rdml")
+
+    assert len(rows) == 19200
+    assert rows[0]["well_id"].startswith("A")
+    assert metadata["run_id"]
+
+
+def test_load_rdml_reads_biorad_public_fixture():
+    rows = load_rdml("data/raw/BioRad_qPCR_melt.rdml")
+    metadata = extract_rdml_metadata("data/raw/BioRad_qPCR_melt.rdml")
+
+    assert len(rows) == 2460
+    assert rows[0]["well_id"].startswith("A")
+    assert metadata["run_id"]
