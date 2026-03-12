@@ -48,6 +48,10 @@ RERUN_FIELDS = [
 ]
 
 
+def _warning(code: str, message: str, severity: str = "warning") -> dict:
+    return {"code": code, "message": message, "severity": severity}
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run qPCR quality control pipeline.")
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -102,11 +106,13 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     tracemalloc.start()
     started = time.perf_counter()
     generated_at_utc = datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    stage_timings: dict[str, float] = {}
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
 
     rdml_arg = getattr(args, "rdml", None)
     curve_csv_arg = getattr(args, "curve_csv", None)
+    stage_started = time.perf_counter()
     if rdml_arg:
         # RDML mode can process a single file or an entire directory in one run.
         rdml_path = Path(rdml_arg)
@@ -118,22 +124,34 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     else:
         raw = load_curve_csv(curve_csv_arg)
         execution_mode = "curve_csv"
+    stage_timings["ingest_seconds"] = round(time.perf_counter() - stage_started, 6)
 
+    stage_started = time.perf_counter()
     normalized = normalize_rows(raw)
+    stage_timings["normalize_seconds"] = round(time.perf_counter() - stage_started, 6)
+
+    stage_started = time.perf_counter()
     eligible, rejected, validation_summary = validate_rows(normalized, min_cycles=args.min_cycles)
+    stage_timings["validate_seconds"] = round(time.perf_counter() - stage_started, 6)
     allow_empty_run = bool(getattr(args, "allow_empty_run", False))
     if not eligible and not allow_empty_run:
         raise ValueError(
             "No eligible well-target curves remained after validation. "
             "Use --allow-empty-run to emit empty outputs for fully rejected inputs."
         )
+    stage_started = time.perf_counter()
     features = build_features(eligible)
     model_config = load_model_config()
     inferred = infer_state_paths(features, model_config_path=model_config["path"])
+    stage_timings["infer_seconds"] = round(time.perf_counter() - stage_started, 6)
+
+    stage_started = time.perf_counter()
     plate_meta = load_plate_meta_csv(args.plate_meta_csv) if args.plate_meta_csv else {}
     well_calls = apply_qc_rules(inferred, plate_meta=plate_meta, plate_schema=args.plate_schema)
     plate_summary = summarize_plates(well_calls, generated_at_utc=generated_at_utc, plate_schema=args.plate_schema)
+    stage_timings["qc_seconds"] = round(time.perf_counter() - stage_started, 6)
 
+    stage_started = time.perf_counter()
     rerun_manifest = []
     for row in well_calls:
         if row["qc_status"] != "rerun":
@@ -158,7 +176,22 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     peak_memory_mb = round(peak_bytes / (1024 * 1024), 6)
     warnings = []
     if rejected:
-        warnings.append(f"rejected_rows_present:{len(rejected)}")
+        warnings.append(_warning("rejected_rows_present", f"{len(rejected)} rows were rejected during validation."))
+    if plate_summary["global_counts"]["review"] > 0:
+        warnings.append(
+            _warning(
+                "review_wells_present",
+                f"{plate_summary['global_counts']['review']} well-target calls require review.",
+            )
+        )
+    if plate_summary["global_counts"]["rerun"] > 0:
+        warnings.append(
+            _warning(
+                "rerun_wells_present",
+                f"{plate_summary['global_counts']['rerun']} well-target calls were escalated to rerun.",
+            )
+        )
+    stage_timings["postprocess_seconds"] = round(time.perf_counter() - stage_started, 6)
 
     metadata = {
         "schema_version": "v0.1.0",
@@ -186,15 +219,40 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         # Validation summary is preserved in metadata so rejected-row reasons remain traceable.
         "data_validation_summary": validation_summary,
         "timing_seconds": elapsed_seconds,
+        "stage_timings_seconds": stage_timings,
         "peak_memory_mb": peak_memory_mb,
         "warnings": warnings,
+        "warning_codes": [warning["code"] for warning in warnings],
     }
 
+    stage_started = time.perf_counter()
     write_csv(outdir / "well_calls.csv", well_calls, WELL_CALL_FIELDS)
     write_csv(outdir / "rerun_manifest.csv", rerun_manifest, RERUN_FIELDS)
     write_json(outdir / "plate_qc_summary.json", plate_summary)
     write_json(outdir / "run_metadata.json", metadata)
+    summary_payload = {
+        "schema_version": "v0.1.0",
+        "generated_at_utc": generated_at_utc,
+        "execution_mode": execution_mode,
+        "plate_schema": args.plate_schema,
+        "counts": {
+            "well_calls": len(well_calls),
+            "rerun_manifest": len(rerun_manifest),
+            "plate_count": len(plate_summary["plates"]),
+            "raw_rows": len(raw),
+            "eligible_rows": len(eligible),
+            "rejected_rows": len(rejected),
+        },
+        "global_counts": plate_summary["global_counts"],
+        "timing_seconds": elapsed_seconds,
+        "peak_memory_mb": peak_memory_mb,
+        "warning_codes": metadata["warning_codes"],
+    }
+    write_json(outdir / "summary.json", summary_payload)
     (outdir / "report.html").write_text(render_report(plate_summary), encoding="utf-8")
+    stage_timings["export_seconds"] = round(time.perf_counter() - stage_started, 6)
+    metadata["stage_timings_seconds"] = stage_timings
+    write_json(outdir / "run_metadata.json", metadata)
 
     return {
         "well_calls": len(well_calls),

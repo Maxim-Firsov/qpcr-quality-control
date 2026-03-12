@@ -28,9 +28,15 @@ def _normalized_json(path: Path) -> str:
         payload.pop("timing_seconds", None)
         payload.pop("peak_memory_mb", None)
         payload.pop("input_snapshot_date", None)
+        payload.pop("stage_timings_seconds", None)
     if path.name == "plate_qc_summary.json":
         payload = dict(payload)
         payload.pop("generated_at_utc", None)
+    if path.name == "summary.json":
+        payload = dict(payload)
+        payload.pop("generated_at_utc", None)
+        payload.pop("timing_seconds", None)
+        payload.pop("peak_memory_mb", None)
     return json.dumps(payload, sort_keys=True)
 
 
@@ -91,7 +97,7 @@ def main() -> int:
                 print(json.dumps({"status": "fail", "file": name}))
                 return 1
 
-        deterministic_json_files = ["plate_qc_summary.json", "run_metadata.json"]
+        deterministic_json_files = ["plate_qc_summary.json", "run_metadata.json", "summary.json"]
         for name in deterministic_json_files:
             if _normalized_json(out1 / name) != _normalized_json(out2 / name):
                 print(json.dumps({"status": "fail", "file": name}))

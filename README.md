@@ -68,9 +68,12 @@ Each run writes:
 - `rerun_manifest.csv`
 - `plate_qc_summary.json`
 - `run_metadata.json`
+- `summary.json`
 - `report.html`
 
-`run_metadata.json` includes execution mode, input hashes, validation summary, warning list, measured runtime in seconds, and peak traced memory in MB.
+`summary.json` provides a compact machine-readable rollup for workflow orchestration.
+
+`run_metadata.json` includes execution mode, input hashes, validation summary, structured warning entries, warning codes, per-stage timings, measured runtime in seconds, and peak traced memory in MB.
 
 Schema expectations are documented in `docs/io_contract.md` and enforced in `tests/contract/test_output_contract.py`.
 

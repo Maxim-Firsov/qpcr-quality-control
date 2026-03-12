@@ -45,6 +45,7 @@ The pipeline writes:
 - `rerun_manifest.csv`
 - `plate_qc_summary.json`
 - `run_metadata.json`
+- `summary.json`
 - `report.html`
 
 Output contract is enforced by `tests/contract/test_output_contract.py`.

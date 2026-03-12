@@ -72,6 +72,7 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     assert (outdir / "rerun_manifest.csv").exists()
     assert (outdir / "plate_qc_summary.json").exists()
     assert (outdir / "run_metadata.json").exists()
+    assert (outdir / "summary.json").exists()
     assert (outdir / "report.html").exists()
 
     summary = json.loads((outdir / "plate_qc_summary.json").read_text(encoding="utf-8"))
@@ -81,7 +82,13 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert metadata["timing_seconds"] >= 0.0
     assert metadata["peak_memory_mb"] >= 0.0
+    assert "stage_timings_seconds" in metadata
+    assert "warning_codes" in metadata
     assert metadata["input_snapshot_date"] != "1970-01-01"
+
+    run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
+    assert run_summary["counts"]["well_calls"] == 1
+    assert run_summary["global_counts"]["pass"] >= 0
 
 
 def test_pipeline_raises_when_all_rows_are_rejected(tmp_path):

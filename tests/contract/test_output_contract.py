@@ -84,10 +84,16 @@ def test_output_contract_required_columns_and_keys(tmp_path):
     for key in ["schema_version", "generated_at_utc", "plates", "global_counts"]:
         assert key in summary
 
+    run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
+    for key in ["schema_version", "generated_at_utc", "execution_mode", "plate_schema", "counts", "global_counts", "timing_seconds", "peak_memory_mb", "warning_codes"]:
+        assert key in run_summary
+
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert "hash" in metadata["model_config"]
     assert metadata["plate_schema"] == "auto"
     assert "peak_memory_mb" in metadata
+    assert "stage_timings_seconds" in metadata
+    assert "warning_codes" in metadata
     for key in ["curve_csv_sha256", "rdml_sha256", "plate_meta_csv_sha256"]:
         assert key in metadata["input_hashes"]
 
