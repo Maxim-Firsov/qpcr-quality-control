@@ -29,3 +29,15 @@ def test_loaders_read_csv_shapes(tmp_path):
     plate_meta = load_plate_meta_csv(meta)
     assert len(curves) == 1
     assert plate_meta[("p1", "A01")]["control_type"] == "sample"
+
+
+def test_plate_meta_loader_normalizes_short_well_ids(tmp_path):
+    meta = tmp_path / "meta.csv"
+    with meta.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=["plate_id", "well_id", "control_type", "replicate_group"])
+        writer.writeheader()
+        writer.writerow({"plate_id": "p1", "well_id": "B3", "control_type": "ntc", "replicate_group": "rg1"})
+
+    plate_meta = load_plate_meta_csv(meta)
+    assert ("p1", "B03") in plate_meta
+    assert plate_meta[("p1", "B03")]["well_id"] == "B03"

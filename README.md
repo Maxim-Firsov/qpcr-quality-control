@@ -10,6 +10,7 @@ than a clinically validated production system.
 ## Features
 
 - RDML and canonical CSV input support
+- Plate metadata joins tolerate common well-ID formats such as `A1` and `A01`
 - Deterministic forward-only Viterbi state decoding with locked model configuration
 - Ct estimation from adjusted amplification curves
 - QC rules for NTC contamination, replicate discordance, positive-control failure, late amplification, low-signal curves, and edge-well review
@@ -65,6 +66,8 @@ Each run writes:
 `run_metadata.json` includes execution mode, input hashes, validation summary, warning list, and measured runtime in seconds.
 
 Schema expectations are documented in `docs/io_contract.md` and enforced in `tests/contract/test_output_contract.py`.
+
+When `--plate-meta-csv` is supplied, metadata well IDs are normalized to the same canonical form used by curve rows so control annotations and replicate groups still join correctly.
 
 ## Performance
 
