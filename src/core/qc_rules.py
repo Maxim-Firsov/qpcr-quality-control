@@ -7,6 +7,8 @@ from collections import defaultdict
 from statistics import mean
 from typing import Iterable
 
+from src.core.plate_layout import is_edge_well, resolve_plate_shape
+
 LATE_CT_THRESHOLD = 35.0
 LOW_SIGNAL_THRESHOLD = 0.15
 
@@ -54,21 +56,11 @@ def _estimate_ct(rows: list[dict], amplified: bool) -> float | None:
     return None
 
 
-def _is_edge_well(well_id: str) -> bool:
-    if len(well_id) < 3:
-        return False
-    row = well_id[0].upper()
-    try:
-        col = int(well_id[1:])
-    except ValueError:
-        return False
-    return row in {"A", "H", "P"} or col in {1, 12, 24}
-
-
 def apply_qc_rules(
     inferred_rows: Iterable[dict],
     plate_meta: dict[tuple[str, str], dict] | None = None,
     confidence_threshold: float = 0.6,
+    plate_schema: str = "auto",
 ) -> list[dict]:
     plate_meta = plate_meta or {}
     grouped: dict[tuple[str, str, str, str], list[dict]] = defaultdict(list)
@@ -76,10 +68,18 @@ def apply_qc_rules(
         key = (row["run_id"], row["plate_id"], row["well_id"], row["target_id"])
         grouped[key].append(row)
 
+    plate_shapes: dict[str, tuple[int, int]] = defaultdict(tuple)
+    plate_wells: dict[str, set[str]] = defaultdict(set)
+    for _, plate_id, well_id, _ in grouped.keys():
+        plate_wells[plate_id].add(well_id)
+    for plate_id, well_ids in plate_wells.items():
+        plate_shapes[plate_id] = resolve_plate_shape(well_ids, plate_schema=plate_schema)
+
     calls: list[dict] = []
     for key, rows in grouped.items():
         run_id, plate_id, well_id, target_id = key
         rows = sorted(rows, key=lambda r: r["cycle"])
+        plate_shape = plate_shapes[plate_id]
         states = [r["state"] for r in rows]
         confidences = [float(r["state_confidence"]) for r in rows]
         avg_conf = mean(confidences) if confidences else 0.0
@@ -109,7 +109,7 @@ def apply_qc_rules(
             flags.append("late_amplification")
         if control_type == "positive_control" and call_label != "amplified":
             flags.append("positive_control_failure")
-        if _is_edge_well(well_id) and ("late_amplification" in flags or "low_confidence" in flags):
+        if is_edge_well(well_id, plate_shape) and ("late_amplification" in flags or "low_confidence" in flags):
             flags.append("edge_well_review")
 
         confidence = avg_conf

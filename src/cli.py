@@ -56,6 +56,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--outdir", required=True, help="Output directory.")
     parser.add_argument("--min-cycles", type=int, default=3, help="Minimum cycles per well-target.")
     parser.add_argument(
+        "--plate-schema",
+        choices=["auto", "96", "384"],
+        default="auto",
+        help="Plate geometry used for edge-aware QC logic. Default: auto.",
+    )
+    parser.add_argument(
         "--allow-empty-run",
         action="store_true",
         help="Write empty outputs instead of failing when all rows are rejected during validation.",
@@ -123,8 +129,8 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     model_config = load_model_config()
     inferred = infer_state_paths(features, model_config_path=model_config["path"])
     plate_meta = load_plate_meta_csv(args.plate_meta_csv) if args.plate_meta_csv else {}
-    well_calls = apply_qc_rules(inferred, plate_meta=plate_meta)
-    plate_summary = summarize_plates(well_calls, generated_at_utc=generated_at_utc)
+    well_calls = apply_qc_rules(inferred, plate_meta=plate_meta, plate_schema=args.plate_schema)
+    plate_summary = summarize_plates(well_calls, generated_at_utc=generated_at_utc, plate_schema=args.plate_schema)
 
     rerun_manifest = []
     for row in well_calls:
@@ -153,6 +159,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         "schema_version": "v0.1.0",
         "tool_version": "0.1.0",
         "execution_mode": execution_mode,
+        "plate_schema": args.plate_schema,
         "inputs": {
             "curve_csv": str(curve_csv_arg or ""),
             "rdml": str(rdml_arg or ""),

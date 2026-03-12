@@ -50,7 +50,17 @@ def test_output_contract_required_columns_and_keys(tmp_path):
             ]
         )
     outdir = tmp_path / "out"
-    run_pipeline(Namespace(curve_csv=str(curve_csv), plate_meta_csv=None, outdir=str(outdir), min_cycles=3))
+    run_pipeline(
+        Namespace(
+            curve_csv=str(curve_csv),
+            rdml=None,
+            plate_meta_csv=None,
+            outdir=str(outdir),
+            min_cycles=3,
+            allow_empty_run=False,
+            plate_schema="auto",
+        )
+    )
 
     well_header = _read_header(outdir / "well_calls.csv")
     assert set(
@@ -76,6 +86,7 @@ def test_output_contract_required_columns_and_keys(tmp_path):
 
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert "hash" in metadata["model_config"]
+    assert metadata["plate_schema"] == "auto"
     for key in ["curve_csv_sha256", "rdml_sha256", "plate_meta_csv_sha256"]:
         assert key in metadata["input_hashes"]
 

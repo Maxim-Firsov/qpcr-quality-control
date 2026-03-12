@@ -19,7 +19,15 @@ def test_runtime_benchmark_96_well_fixture_stays_fast(tmp_path):
     _write_curve_fixture(curve_csv, wells=96, cycles=40)
 
     summary = run_pipeline(
-        Namespace(curve_csv=str(curve_csv), rdml=None, plate_meta_csv=None, outdir=str(outdir), min_cycles=20)
+        Namespace(
+            curve_csv=str(curve_csv),
+            rdml=None,
+            plate_meta_csv=None,
+            outdir=str(outdir),
+            min_cycles=20,
+            allow_empty_run=False,
+            plate_schema="96",
+        )
     )
 
     assert summary["well_calls"] == 96

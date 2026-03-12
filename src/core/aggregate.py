@@ -6,19 +6,10 @@ import json
 from collections import Counter, defaultdict
 from typing import Iterable
 
-
-def _is_edge_well(well_id: str) -> bool:
-    if len(well_id) < 3:
-        return False
-    row = well_id[0].upper()
-    try:
-        col = int(well_id[1:])
-    except ValueError:
-        return False
-    return row in {"A", "H", "P"} or col in {1, 12, 24}
+from src.core.plate_layout import is_edge_well, resolve_plate_shape
 
 
-def summarize_plates(well_calls: Iterable[dict], generated_at_utc: str) -> dict:
+def summarize_plates(well_calls: Iterable[dict], generated_at_utc: str, plate_schema: str = "auto") -> dict:
     grouped: dict[str, list[dict]] = defaultdict(list)
     for call in well_calls:
         grouped[call["plate_id"]].append(call)
@@ -26,6 +17,7 @@ def summarize_plates(well_calls: Iterable[dict], generated_at_utc: str) -> dict:
     plates = []
     global_counts = Counter()
     for plate_id, calls in grouped.items():
+        plate_shape = resolve_plate_shape((call["well_id"] for call in calls), plate_schema=plate_schema)
         status_counts = Counter(call["qc_status"] for call in calls)
         ntc_contam = 0
         replicate_discordance = 0
@@ -38,7 +30,7 @@ def summarize_plates(well_calls: Iterable[dict], generated_at_utc: str) -> dict:
             flags = json.loads(call["qc_flags"])
             ntc_contam += int("ntc_contamination" in flags)
             replicate_discordance += int("replicate_discordance" in flags)
-            is_edge = _is_edge_well(call["well_id"])
+            is_edge = is_edge_well(call["well_id"], plate_shape)
             if is_edge:
                 total_edge_wells += 1
                 flagged_edge_wells += int(call["qc_status"] != "pass")

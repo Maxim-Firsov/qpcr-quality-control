@@ -56,7 +56,17 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
         )
 
     outdir = tmp_path / "out"
-    run_pipeline(Namespace(curve_csv=str(curve_csv), plate_meta_csv=None, outdir=str(outdir), min_cycles=3))
+    run_pipeline(
+        Namespace(
+            curve_csv=str(curve_csv),
+            rdml=None,
+            plate_meta_csv=None,
+            outdir=str(outdir),
+            min_cycles=3,
+            allow_empty_run=False,
+            plate_schema="auto",
+        )
+    )
 
     assert (outdir / "well_calls.csv").exists()
     assert (outdir / "rerun_manifest.csv").exists()
@@ -94,7 +104,17 @@ def test_pipeline_raises_when_all_rows_are_rejected(tmp_path):
         )
 
     with pytest.raises(ValueError, match="No eligible well-target curves remained after validation"):
-        run_pipeline(Namespace(curve_csv=str(curve_csv), rdml=None, plate_meta_csv=None, outdir=str(tmp_path / "out"), min_cycles=3))
+        run_pipeline(
+            Namespace(
+                curve_csv=str(curve_csv),
+                rdml=None,
+                plate_meta_csv=None,
+                outdir=str(tmp_path / "out"),
+                min_cycles=3,
+                allow_empty_run=False,
+                plate_schema="auto",
+            )
+        )
 
 
 def test_pipeline_can_emit_empty_outputs_when_allow_empty_run_is_enabled(tmp_path):
@@ -125,6 +145,7 @@ def test_pipeline_can_emit_empty_outputs_when_allow_empty_run_is_enabled(tmp_pat
             outdir=str(tmp_path / "out"),
             min_cycles=3,
             allow_empty_run=True,
+            plate_schema="auto",
         )
     )
 

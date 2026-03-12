@@ -14,7 +14,7 @@ than a clinically validated production system.
 - Deterministic forward-only Viterbi state decoding with locked model configuration
 - Ct estimation from adjusted amplification curves
 - QC rules for NTC contamination, replicate discordance, positive-control failure, late amplification, low-signal curves, and edge-well review
-- Plate-level summary with edge-effect alerting
+- Plate-level summary with geometry-aware edge-effect alerting for `96`, `384`, or `auto` mode
 - Static HTML report plus auditable run metadata with input hashes and measured runtime
 - Unit, integration, and contract tests with a lightweight runtime benchmark fixture
 
@@ -44,16 +44,18 @@ python -m pip install -e .
 Run on RDML input:
 
 ```powershell
-python -m src.cli --rdml data\raw --outdir outputs\run_rdml --min-cycles 25
+python -m src.cli --rdml data\raw --outdir outputs\run_rdml --min-cycles 25 --plate-schema auto
 ```
 
 Run on canonical CSV input:
 
 ```powershell
-python -m src.cli --curve-csv data\fixtures\q4_curves.csv --plate-meta-csv data\fixtures\q4_plate_meta.csv --outdir outputs\run_csv --min-cycles 3
+python -m src.cli --curve-csv data\fixtures\q4_curves.csv --plate-meta-csv data\fixtures\q4_plate_meta.csv --outdir outputs\run_csv --min-cycles 3 --plate-schema 96
 ```
 
 By default the CLI fails with a non-zero exit if validation rejects every well-target curve. Use `--allow-empty-run` only when your surrounding workflow explicitly wants empty-but-audited outputs from fully rejected inputs.
+
+Use `--plate-schema 96` or `--plate-schema 384` when your workflow knows the plate format. `auto` infers the smallest standard geometry that fits the observed well IDs.
 
 ## Outputs
 

@@ -139,3 +139,34 @@ def test_qc_rules_flags_positive_control_failure():
     flags = json.loads(calls[0]["qc_flags"])
     assert calls[0]["qc_status"] == "rerun"
     assert "positive_control_failure" in flags
+
+
+def test_edge_well_review_respects_384_geometry():
+    inferred = [
+        {
+            "run_id": "r1",
+            "plate_id": "p384",
+            "well_id": "H12",
+            "sample_id": "s1",
+            "target_id": "t1",
+            "cycle": 35,
+            "state": "baseline_noise",
+            "state_confidence": 0.4,
+            "f_adj": 0.05,
+        },
+        {
+            "run_id": "r1",
+            "plate_id": "p384",
+            "well_id": "H12",
+            "sample_id": "s1",
+            "target_id": "t1",
+            "cycle": 36,
+            "state": "exponential_amplification",
+            "state_confidence": 0.4,
+            "f_adj": 0.25,
+        },
+    ]
+    calls = apply_qc_rules(inferred, plate_schema="384")
+    flags = json.loads(calls[0]["qc_flags"])
+    assert "low_confidence" in flags
+    assert "edge_well_review" not in flags
