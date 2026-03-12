@@ -21,6 +21,18 @@ def _hash_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _normalized_json(path: Path) -> str:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if path.name == "run_metadata.json":
+        payload = dict(payload)
+        payload.pop("timing_seconds", None)
+        payload.pop("input_snapshot_date", None)
+    if path.name == "plate_qc_summary.json":
+        payload = dict(payload)
+        payload.pop("generated_at_utc", None)
+    return json.dumps(payload, sort_keys=True)
+
+
 def _make_fixture(path: Path) -> None:
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(
@@ -52,9 +64,15 @@ def main() -> int:
         run_pipeline(Namespace(curve_csv=str(curve), plate_meta_csv=None, outdir=str(out1), min_cycles=3))
         run_pipeline(Namespace(curve_csv=str(curve), plate_meta_csv=None, outdir=str(out2), min_cycles=3))
 
-        deterministic_files = ["well_calls.csv", "rerun_manifest.csv", "plate_qc_summary.json", "run_metadata.json"]
+        deterministic_files = ["well_calls.csv", "rerun_manifest.csv"]
         for name in deterministic_files:
             if _hash_file(out1 / name) != _hash_file(out2 / name):
+                print(json.dumps({"status": "fail", "file": name}))
+                return 1
+
+        deterministic_json_files = ["plate_qc_summary.json", "run_metadata.json"]
+        for name in deterministic_json_files:
+            if _normalized_json(out1 / name) != _normalized_json(out2 / name):
                 print(json.dumps({"status": "fail", "file": name}))
                 return 1
 
