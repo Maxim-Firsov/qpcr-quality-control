@@ -126,6 +126,7 @@ Each run writes:
 - peak traced memory
 
 The HTML report includes plate summaries, alerts, rerun rationale, and top flagged wells.
+It now also includes plate heatmaps and flagged-well curve drilldowns for faster review.
 
 ## Public Fixture Coverage
 

@@ -314,7 +314,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         "warning_codes": metadata["warning_codes"],
     }
     write_json(outdir / "summary.json", summary_payload)
-    (outdir / "report.html").write_text(render_report(plate_summary, well_calls=well_calls), encoding="utf-8")
+    (outdir / "report.html").write_text(render_report(plate_summary, well_calls=well_calls, curve_rows=inferred), encoding="utf-8")
     stage_timings["export_seconds"] = round(time.perf_counter() - stage_started, 6)
     metadata["stage_timings_seconds"] = stage_timings
     write_json(outdir / "run_metadata.json", metadata)

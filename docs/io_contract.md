@@ -87,6 +87,16 @@ The pipeline writes:
 - `summary.json`
 - `report.html`
 
+`report.html` major sections:
+
+- Overview
+- Per-Plate Summary
+- Plate Heatmaps
+- Plate Alerts
+- Top Flagged Wells
+- Curve Drilldowns
+- Rerun Rationale
+
 Output contract is enforced by `tests/contract/test_output_contract.py`.
 
 `run_metadata.json` also records:

@@ -95,6 +95,9 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
     assert run_summary["counts"]["well_calls"] == 1
     assert run_summary["global_counts"]["pass"] >= 0
+    report_html = (outdir / "report.html").read_text(encoding="utf-8")
+    assert "Plate Heatmaps" in report_html
+    assert "Curve Drilldowns" in report_html
 
 
 def test_pipeline_control_map_config_marks_controls(tmp_path):

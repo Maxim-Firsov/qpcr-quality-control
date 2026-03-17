@@ -16,7 +16,7 @@ def test_render_report_has_table():
                     "ntc_contamination_count": 1,
                     "replicate_discordance_count": 1,
                     "edge_effect_alert": True,
-                    "plate_status": "review",
+                "plate_status": "review",
                 }
             ]
         },
@@ -31,12 +31,42 @@ def test_render_report_has_table():
                 "amplification_confidence": 0.4,
             }
         ],
+        curve_rows=[
+            {
+                "plate_id": "p1",
+                "well_id": "A01",
+                "target_id": "t1",
+                "cycle": 1,
+                "f_adj": 0.0,
+                "state": "baseline_noise",
+            },
+            {
+                "plate_id": "p1",
+                "well_id": "A01",
+                "target_id": "t1",
+                "cycle": 2,
+                "f_adj": 0.3,
+                "state": "exponential_amplification",
+            },
+            {
+                "plate_id": "p1",
+                "well_id": "A01",
+                "target_id": "t1",
+                "cycle": 3,
+                "f_adj": 0.6,
+                "state": "linear_transition",
+            },
+        ],
     )
     assert "<table" in html
     assert "p1" in html
     assert "Overview" in html
     assert "Per-Plate Summary" in html
+    assert "Plate Heatmaps" in html
     assert "Plate Alerts" in html
     assert "Top Flagged Wells" in html
+    assert "Curve Drilldowns" in html
     assert "Rerun Rationale" in html
     assert "Generated at 2026-03-12T00:00:00Z" in html
+    assert "heatmap-cell" in html
+    assert "<svg" in html
