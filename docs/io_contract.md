@@ -30,6 +30,8 @@ CLI QC threshold overrides:
 - `--confidence-threshold <float>`
 - `--late-ct-threshold <float>`
 - `--low-signal-threshold <float>`
+- `--normalization-profile <name|auto>`
+- `--normalization-config <path>`
 
 Canonical row schema required columns:
 
@@ -51,6 +53,7 @@ Parser path to canonical schema:
 1. `src/io/rdml_loader.py` (`load_rdml`) parses RDML XML into canonical rows.
 2. `src/core/normalize.py` enforces normalized IDs and typed cycle/fluorescence fields.
 3. `src/core/validate.py` applies schema/well/cycle guards, excludes rows marked as melt stage, and produces rejection summaries.
+4. `src/core/features.py` resolves assay/instrument-aware normalization profiles before derivative feature generation.
 
 `--plate-meta-csv` optional columns:
 
@@ -68,3 +71,9 @@ The pipeline writes:
 - `report.html`
 
 Output contract is enforced by `tests/contract/test_output_contract.py`.
+
+`run_metadata.json` also records:
+
+- `normalization.requested_profile`
+- `normalization.config_path`
+- `normalization.config_sha256`

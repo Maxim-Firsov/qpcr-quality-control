@@ -63,6 +63,12 @@ Threshold overrides:
 python -m src.cli --rdml data\raw\stepone_std.rdml --outdir outputs\tuned_run --min-cycles 25 --plate-schema 96 --confidence-threshold 0.7 --late-ct-threshold 33 --low-signal-threshold 0.2
 ```
 
+Normalization profile override:
+
+```powershell
+python -m src.cli --rdml data\raw\stepone_std.rdml --outdir outputs\normalized_run --plate-schema 96 --normalization-profile roche_lc480_standard
+```
+
 Batch manifest mode:
 
 ```powershell
@@ -106,6 +112,7 @@ Each run writes:
 - validation counts
 - structured warnings and warning codes
 - QC thresholds used for the run
+- normalization config path and hash
 - per-stage timings
 - total runtime
 - peak traced memory
@@ -162,6 +169,7 @@ The full local test suite currently runs in about three seconds.
 - Designed for local execution
 - Deterministic outputs are favored over opaque model behavior
 - Public-fixture coverage improves parser and throughput confidence, but does not substitute for assay-specific validation
+- Assay- and instrument-aware normalization profiles are deterministic config, not biological calibration
 
 ## License
 

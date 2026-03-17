@@ -15,6 +15,7 @@ from pathlib import Path
 from src.core.aggregate import summarize_plates
 from src.core.features import build_features
 from src.core.hmm_infer import infer_state_paths, load_model_config
+from src.core.normalization_profiles import load_normalization_profiles
 from src.core.normalize import normalize_rows
 from src.core.qc_rules import apply_qc_rules
 from src.core.validate import validate_rows
@@ -75,6 +76,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--allow-empty-run",
         action="store_true",
         help="Write empty outputs instead of failing when all rows are rejected during validation.",
+    )
+    parser.add_argument(
+        "--normalization-profile",
+        default="auto",
+        help="Normalization profile name from config, or 'auto' to resolve by instrument/assay.",
+    )
+    parser.add_argument(
+        "--normalization-config",
+        required=False,
+        help="Optional JSON config path for normalization profiles.",
     )
     parser.add_argument("--fail-on-review", action="store_true", help="Exit non-zero if any well-target is marked review.")
     parser.add_argument("--fail-on-rerun", action="store_true", help="Exit non-zero if any well-target is marked rerun.")
@@ -148,7 +159,13 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             "Use --allow-empty-run to emit empty outputs for fully rejected inputs."
         )
     stage_started = time.perf_counter()
-    features = build_features(eligible)
+    normalization_profiles = load_normalization_profiles(getattr(args, "normalization_config", None))
+    requested_profile = getattr(args, "normalization_profile", "auto")
+    features = build_features(
+        eligible,
+        normalization_profiles=normalization_profiles,
+        requested_profile=None if requested_profile == "auto" else requested_profile,
+    )
     model_config = load_model_config()
     inferred = infer_state_paths(features, model_config_path=model_config["path"])
     stage_timings["infer_seconds"] = round(time.perf_counter() - stage_started, 6)
@@ -236,6 +253,11 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             "rejected_rows": len(rejected),
         },
         "model_config": {"name": "model_v1", "hash": model_config["sha256"]},
+        "normalization": {
+            "requested_profile": requested_profile,
+            "config_path": normalization_profiles["_path"],
+            "config_sha256": normalization_profiles["_sha256"],
+        },
         # Validation summary is preserved in metadata so rejected-row reasons remain traceable.
         "data_validation_summary": validation_summary,
         "timing_seconds": elapsed_seconds,
@@ -318,6 +340,8 @@ def run_batch_manifest(args: argparse.Namespace) -> dict:
             min_cycles=int(row.get("min_cycles") or args.min_cycles),
             allow_empty_run=str(row.get("allow_empty_run") or "").strip().lower() in {"1", "true", "yes"},
             plate_schema=(row.get("plate_schema") or args.plate_schema or "auto"),
+            normalization_profile=row.get("normalization_profile") or args.normalization_profile,
+            normalization_config=row.get("normalization_config") or args.normalization_config,
         )
         result = run_pipeline(run_args)
         result["manifest_row"] = index

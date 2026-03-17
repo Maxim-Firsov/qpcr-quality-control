@@ -1,0 +1,32 @@
+{
+  "default_profile": "standard",
+  "profiles": {
+    "standard": {
+      "baseline_strategy": "minimum",
+      "baseline_cycle_count": 3,
+      "signal_scale": 1.0
+    },
+    "thermo_fisher_standard": {
+      "baseline_strategy": "mean_first_n",
+      "baseline_cycle_count": 4,
+      "signal_scale": 1.0
+    },
+    "roche_lc480_standard": {
+      "baseline_strategy": "median_first_n",
+      "baseline_cycle_count": 5,
+      "signal_scale": 1.05
+    },
+    "high_sensitivity_assay": {
+      "signal_scale": 1.2
+    }
+  },
+  "instrument_profiles": {
+    "abi 7500": "thermo_fisher_standard",
+    "stepone": "thermo_fisher_standard",
+    "roche lc480": "roche_lc480_standard",
+    "lightcycler 480": "roche_lc480_standard"
+  },
+  "assay_profiles": {
+    "target_high_sensitivity": "high_sensitivity_assay"
+  }
+}

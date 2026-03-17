@@ -75,6 +75,7 @@ def test_v010_output_schema_compatibility(tmp_path):
         "input_snapshot_date",
         "inputs",
         "model_config",
+        "normalization",
         "peak_memory_mb",
         "plate_schema",
         "qc_thresholds",
@@ -85,4 +86,9 @@ def test_v010_output_schema_compatibility(tmp_path):
         "tool_version",
         "warning_codes",
         "warnings",
+    ]
+    assert sorted(metadata["normalization"].keys()) == [
+        "config_path",
+        "config_sha256",
+        "requested_profile",
     ]

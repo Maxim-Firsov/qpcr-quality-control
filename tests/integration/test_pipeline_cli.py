@@ -85,6 +85,8 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     assert "stage_timings_seconds" in metadata
     assert "warning_codes" in metadata
     assert metadata["input_snapshot_date"] != "1970-01-01"
+    assert metadata["normalization"]["requested_profile"] == "auto"
+    assert metadata["normalization"]["config_sha256"]
 
     run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
     assert run_summary["counts"]["well_calls"] == 1
