@@ -1,6 +1,8 @@
 import csv
 import json
 from argparse import Namespace
+from io import StringIO
+from contextlib import redirect_stdout
 
 import pytest
 
@@ -306,3 +308,85 @@ def test_main_batch_manifest_writes_batch_summary(tmp_path):
     assert code == 0
     batch_summary = json.loads((tmp_path / "batch_out" / "batch_summary.json").read_text(encoding="utf-8"))
     assert batch_summary["run_count"] == 2
+
+
+def test_main_prints_success_summary_for_single_run(tmp_path):
+    curve_csv = tmp_path / "curves.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerows(
+            [
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 1, "fluorescence": 0.1},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 2, "fluorescence": 0.5},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 3, "fluorescence": 1.0},
+            ]
+        )
+
+    stdout = StringIO()
+    with redirect_stdout(stdout):
+        code = main(["--curve-csv", str(curve_csv), "--outdir", str(tmp_path / "out"), "--min-cycles", "3"])
+
+    assert code == 0
+    output = stdout.getvalue()
+    assert "qpcr-quality-control completed:" in output
+    assert "Summary:" in output
+
+
+def test_main_batch_manifest_propagates_threshold_overrides(tmp_path):
+    curve_csv = tmp_path / "curves.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerows(
+            [
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 1, "fluorescence": 0.1},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 2, "fluorescence": 0.2},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 3, "fluorescence": 0.3},
+            ]
+        )
+
+    manifest = tmp_path / "batch.csv"
+    with manifest.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["input_mode", "input_path", "outdir", "min_cycles", "plate_schema", "allow_empty_run"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "input_mode": "curve_csv",
+                "input_path": str(curve_csv),
+                "outdir": str(tmp_path / "run_a"),
+                "min_cycles": 3,
+                "plate_schema": "auto",
+                "allow_empty_run": "false",
+            }
+        )
+
+    code = main(
+        [
+            "--batch-manifest",
+            str(manifest),
+            "--outdir",
+            str(tmp_path / "batch_out"),
+            "--confidence-threshold",
+            "0.9",
+            "--late-ct-threshold",
+            "22",
+            "--low-signal-threshold",
+            "0.99",
+        ]
+    )
+
+    assert code == 0
+    metadata = json.loads((tmp_path / "run_a" / "run_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["qc_thresholds"]["confidence_threshold"] == 0.9
+    assert metadata["qc_thresholds"]["late_ct_threshold"] == 22.0
+    assert metadata["qc_thresholds"]["low_signal_threshold"] == 0.99

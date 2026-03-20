@@ -98,6 +98,23 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _emit_success_summary(result: dict) -> None:
+    """Print a concise success summary with the primary output artifact."""
+    global_counts = result.get("global_counts", {})
+    print(
+        (
+            "qpcr-quality-control completed: "
+            f"{result.get('well_calls', 0)} well call(s), "
+            f"{result.get('rerun_manifest', 0)} rerun row(s), "
+            f"{result.get('plate_count', 0)} plate(s), "
+            f"pass={int(global_counts.get('pass', 0))}, "
+            f"review={int(global_counts.get('review', 0))}, "
+            f"rerun={int(global_counts.get('rerun', 0))}."
+        )
+    )
+    print(f"Summary: {result.get('summary_path', '')}")
+
+
 def _hash_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -364,6 +381,9 @@ def run_batch_manifest(args: argparse.Namespace) -> dict:
             min_cycles=int(row.get("min_cycles") or args.min_cycles),
             allow_empty_run=str(row.get("allow_empty_run") or "").strip().lower() in {"1", "true", "yes"},
             plate_schema=(row.get("plate_schema") or args.plate_schema or "auto"),
+            confidence_threshold=float(row.get("confidence_threshold") or args.confidence_threshold),
+            late_ct_threshold=float(row.get("late_ct_threshold") or args.late_ct_threshold),
+            low_signal_threshold=float(row.get("low_signal_threshold") or args.low_signal_threshold),
             replicate_ct_spread_threshold=float(row.get("replicate_ct_spread_threshold") or args.replicate_ct_spread_threshold),
             replicate_ct_outlier_threshold=float(row.get("replicate_ct_outlier_threshold") or args.replicate_ct_outlier_threshold),
             normalization_profile=row.get("normalization_profile") or args.normalization_profile,
@@ -392,6 +412,7 @@ def main(argv: list[str] | None = None) -> int:
             batch_summary = run_batch_manifest(args)
             failures = []
             for result in batch_summary["results"]:
+                _emit_success_summary(result)
                 failures.extend(
                     _policy_failures(
                         result,
@@ -402,6 +423,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
         else:
             result = run_pipeline(args)
+            _emit_success_summary(result)
             failures = _policy_failures(
                 result,
                 fail_on_review=args.fail_on_review,
