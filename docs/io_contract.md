@@ -110,8 +110,8 @@ Conditional outputs:
 
 Artifact profile behavior:
 
-- `minimal`: compact outputs for every run; no `report.html`; `well_calls.csv` only for `rerun` runs
-- `review`: compact outputs for every run; `well_calls.csv` and `report.html` only for `review` or `rerun` runs
+- `minimal`: compact outputs for every run; rich reviewer-facing artifacts are generated for `rerun` runs, while workflow mode may keep lightweight placeholders so tracked files can be restored on rerun
+- `review`: compact outputs for every run; rich `well_calls.csv` and `report.html` content is generated for `review` or `rerun` runs, while workflow mode may keep lightweight placeholders for non-flagged runs
 - `full`: all per-run outputs for every run
 
 `summary.json` required keys:

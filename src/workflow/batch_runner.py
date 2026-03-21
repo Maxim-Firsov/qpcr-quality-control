@@ -7,7 +7,7 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
-from src.cli import run_pipeline
+from src.cli import WELL_CALL_FIELDS, run_pipeline
 from src.export.writers import write_csv, write_json
 
 RERUN_FIELDS = [
@@ -33,6 +33,59 @@ def _load_manifest(path: str | Path) -> dict:
 def _load_run_record(path: str | Path) -> dict:
     with Path(path).open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _write_placeholder_well_calls(path: Path) -> None:
+    write_csv(path, [], WELL_CALL_FIELDS)
+
+
+def _write_placeholder_report(path: Path, reason: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        (
+            "<html><head><meta charset='utf-8'><title>qPCR QC Report Placeholder</title></head>"
+            f"<body><p>{reason}</p></body></html>"
+        ),
+        encoding="utf-8",
+    )
+
+
+def _mark_placeholder_artifact(inventory: dict, name: str, path: Path, reason: str) -> None:
+    inventory[name] = {
+        "generated": True,
+        "path": str(path),
+        "reason": reason,
+    }
+
+
+def _load_json(path: str | Path) -> dict:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def _ensure_tracked_optional_artifacts(run_dir: Path, placeholder_reason_prefix: str = "placeholder") -> None:
+    summary_path = run_dir / "summary.json"
+    metadata_path = run_dir / "run_metadata.json"
+    summary = _load_json(summary_path)
+    metadata = _load_json(metadata_path)
+    inventory = summary.get("artifact_inventory", {})
+
+    well_calls_path = run_dir / "well_calls.csv"
+    if not well_calls_path.exists():
+        reason = f"{placeholder_reason_prefix}_well_calls"
+        _write_placeholder_well_calls(well_calls_path)
+        _mark_placeholder_artifact(inventory, "well_calls.csv", well_calls_path, reason)
+
+    report_path = run_dir / "report.html"
+    if not report_path.exists():
+        reason = f"{placeholder_reason_prefix}_report_html"
+        _write_placeholder_report(report_path, "Reviewer-facing report omitted or unavailable for this run.")
+        _mark_placeholder_artifact(inventory, "report.html", report_path, reason)
+
+    summary["artifact_inventory"] = inventory
+    metadata["artifact_inventory"] = inventory
+    write_json(summary_path, summary)
+    write_json(metadata_path, metadata)
 
 
 def _write_failure_outputs(run_record: dict, message: str) -> None:
@@ -73,8 +126,8 @@ def _write_failure_outputs(run_record: dict, message: str) -> None:
             "run_metadata.json": {"generated": True, "path": str(run_dir / "run_metadata.json"), "reason": "failure_placeholder"},
             "plate_qc_summary.json": {"generated": True, "path": str(run_dir / "plate_qc_summary.json"), "reason": "failure_placeholder"},
             "rerun_manifest.csv": {"generated": True, "path": str(run_dir / "rerun_manifest.csv"), "reason": "failure_placeholder"},
-            "well_calls.csv": {"generated": False, "path": str(run_dir / "well_calls.csv"), "reason": "analysis_failed"},
-            "report.html": {"generated": False, "path": str(run_dir / "report.html"), "reason": "analysis_failed"},
+            "well_calls.csv": {"generated": True, "path": str(run_dir / "well_calls.csv"), "reason": "failure_placeholder"},
+            "report.html": {"generated": True, "path": str(run_dir / "report.html"), "reason": "failure_placeholder"},
         },
     }
     metadata = {
@@ -112,6 +165,8 @@ def _write_failure_outputs(run_record: dict, message: str) -> None:
             "replicate_ct_outlier_threshold": run_record["replicate_ct_outlier_threshold"],
         },
     }
+    _write_placeholder_well_calls(run_dir / "well_calls.csv")
+    _write_placeholder_report(run_dir / "report.html", "Run failed before reviewer-facing artifacts could be rendered.")
     plate_qc_summary = {
         "schema_version": "v0.1.0",
         "generated_at_utc": summary["generated_at_utc"],
@@ -166,6 +221,7 @@ def execute_run(validated_manifest_path: str | Path, run_id: str) -> dict:
             "summary_path": str(run_dir / "summary.json"),
             "run_dir": str(run_dir),
         }
+        _ensure_tracked_optional_artifacts(run_dir, placeholder_reason_prefix="workflow_tracked")
         write_json(status_path, workflow_status)
         return result
     except Exception as exc:
@@ -219,6 +275,7 @@ def execute_run_record(run_record_path: str | Path) -> dict:
             "summary_path": str(run_dir / "summary.json"),
             "run_dir": str(run_dir),
         }
+        _ensure_tracked_optional_artifacts(run_dir, placeholder_reason_prefix="workflow_tracked")
         write_json(status_path, workflow_status)
         return result
     except Exception as exc:

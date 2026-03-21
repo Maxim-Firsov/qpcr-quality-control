@@ -79,8 +79,10 @@ def test_snakemake_batch_generates_handoff_packet(tmp_path):
     assert gate_status["release_status"] in {"review", "block"}
     pass_record = next(record for record in batch_master["runs"] if record["run_id"] == "pass_run")
     review_record = next(record for record in batch_master["runs"] if record["run_id"] == "review_run")
-    assert pass_record["artifact_inventory"]["report.html"]["generated"] is False
-    assert pass_record["artifact_inventory"]["well_calls.csv"]["generated"] is False
+    assert pass_record["artifact_inventory"]["report.html"]["generated"] is True
+    assert pass_record["artifact_inventory"]["well_calls.csv"]["generated"] is True
+    assert pass_record["artifact_inventory"]["report.html"]["reason"] == "workflow_tracked_report_html"
+    assert pass_record["artifact_inventory"]["well_calls.csv"]["reason"] == "workflow_tracked_well_calls"
     assert review_record["artifact_inventory"]["well_calls.csv"]["generated"] is True
     assert (batch_out / "batch_report.md").exists()
     assert (batch_out / "failure_reason_counts.tsv").exists()
@@ -172,6 +174,45 @@ def test_snakemake_rerun_restores_tracked_compact_outputs(tmp_path):
     assert "bogus_sample" not in rerun_queue
 
 
+def test_snakemake_rerun_restores_tracked_reviewer_artifacts(tmp_path):
+    repo_root = Path(__file__).resolve().parents[2]
+    pass_curve = tmp_path / "pass.csv"
+    review_curve = tmp_path / "review.csv"
+    _write_curve_csv(pass_curve, "pass_run", 1.0)
+    _write_curve_csv(review_curve, "review_run", 0.3)
+
+    manifest = tmp_path / "manifest.tsv"
+    manifest.write_text(
+        "run_id\tinput_mode\tinput_path\tmin_cycles\tplate_schema\tallow_empty_run\n"
+        f"pass_run\tcurve_csv\t{pass_curve}\t3\tauto\tfalse\n"
+        f"review_run\tcurve_csv\t{review_curve}\t3\tauto\tfalse\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "batch_config.yaml"
+    config.write_text(
+        f"manifest: {manifest.as_posix()}\n"
+        f"output_root: {(tmp_path / 'batch_outputs').as_posix()}\n"
+        "artifact_profile: review\n",
+        encoding="utf-8",
+    )
+
+    first_run = _run_snakemake(repo_root, config)
+    assert first_run.returncode == 0, first_run.stderr
+
+    batch_out = tmp_path / "batch_outputs"
+    review_well_calls = batch_out / "runs" / "review_run" / "well_calls.csv"
+    review_report = batch_out / "runs" / "review_run" / "report.html"
+    pass_well_calls = batch_out / "runs" / "pass_run" / "well_calls.csv"
+    pass_report = batch_out / "runs" / "pass_run" / "report.html"
+    for artifact in [review_well_calls, review_report, pass_well_calls, pass_report]:
+        artifact.unlink()
+
+    second_run = _run_snakemake(repo_root, config)
+    assert second_run.returncode == 0, second_run.stderr
+    for artifact in [review_well_calls, review_report, pass_well_calls, pass_report]:
+        assert artifact.exists()
+
+
 def test_snakemake_preserves_failed_run_placeholders_for_analysis_errors(tmp_path):
     repo_root = Path(__file__).resolve().parents[2]
     short_curve = tmp_path / "short.csv"
@@ -225,6 +266,8 @@ def test_snakemake_preserves_failed_run_placeholders_for_analysis_errors(tmp_pat
     failed_record = batch_master["runs"][0]
     assert failed_record["execution_status"] == "failed"
     assert failed_record["run_status"] == "unavailable"
+    assert failed_record["artifact_inventory"]["well_calls.csv"]["generated"] is True
+    assert failed_record["artifact_inventory"]["report.html"]["generated"] is True
 
     gate_status = json.loads((batch_out / "batch_gate_status.json").read_text(encoding="utf-8"))
     assert gate_status["release_status"] == "block"

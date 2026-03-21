@@ -476,7 +476,7 @@ def _policy_failures(result: dict, fail_on_review: bool, fail_on_rerun: bool, fa
 
 
 def _manifest_rows(path: str | Path) -> list[dict]:
-    with Path(path).open("r", encoding="utf-8", newline="") as handle:
+    with Path(path).open("r", encoding="utf-8-sig", newline="") as handle:
         return list(csv.DictReader(handle))
 
 

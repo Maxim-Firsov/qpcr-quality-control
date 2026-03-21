@@ -22,8 +22,8 @@ The workflow default is `artifact_profile=review`.
 That means:
 
 - every run gets compact machine-readable outputs
-- passing runs avoid unnecessary `report.html` and `well_calls.csv`
 - review or rerun runs keep richer reviewer-facing artifacts
+- non-flagged runs may carry lightweight placeholder `well_calls.csv` and `report.html` files so Snakemake can recover tracked reviewer-facing paths if they disappear
 - aggregation always reads machine-readable outputs and never depends on `report.html`
 
 ## Batch Packet

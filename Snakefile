@@ -18,6 +18,8 @@ RUN_STATUS_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/workflow_status.jso
 RUN_RERUN_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/rerun_manifest.csv"), run_id=RUN_IDS)
 RUN_METADATA_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/run_metadata.json"), run_id=RUN_IDS)
 RUN_PLATE_QC_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/plate_qc_summary.json"), run_id=RUN_IDS)
+RUN_WELL_CALLS_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/well_calls.csv"), run_id=RUN_IDS)
+RUN_REPORT_OUTPUTS = expand(str(OUTPUT_ROOT / "runs/{run_id}/report.html"), run_id=RUN_IDS)
 
 
 rule all:
@@ -33,6 +35,8 @@ rule all:
         RUN_RERUN_OUTPUTS,
         RUN_METADATA_OUTPUTS,
         RUN_PLATE_QC_OUTPUTS,
+        RUN_WELL_CALLS_OUTPUTS,
+        RUN_REPORT_OUTPUTS,
 
 
 rule validate_manifest:
@@ -79,6 +83,8 @@ rule run_manifest_row:
         rerun_manifest=str(OUTPUT_ROOT / "runs/{run_id}/rerun_manifest.csv"),
         run_metadata=str(OUTPUT_ROOT / "runs/{run_id}/run_metadata.json"),
         plate_qc_summary=str(OUTPUT_ROOT / "runs/{run_id}/plate_qc_summary.json"),
+        well_calls=str(OUTPUT_ROOT / "runs/{run_id}/well_calls.csv"),
+        report_html=str(OUTPUT_ROOT / "runs/{run_id}/report.html"),
     shell:
         "python -m src.workflow.batch_runner --run-record \"{input.run_row}\""
 

@@ -400,6 +400,35 @@ def test_main_batch_manifest_propagates_threshold_overrides(tmp_path):
     assert metadata["qc_thresholds"]["low_signal_threshold"] == 0.99
 
 
+def test_main_batch_manifest_accepts_utf8_bom_csv(tmp_path):
+    curve_csv = tmp_path / "curves.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerows(
+            [
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 1, "fluorescence": 0.1},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 2, "fluorescence": 0.2},
+                {"run_id": "r1", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 3, "fluorescence": 0.8},
+            ]
+        )
+
+    manifest = tmp_path / "batch_bom.csv"
+    manifest.write_text(
+        "input_mode,input_path,outdir,min_cycles,plate_schema,allow_empty_run\n"
+        f"curve_csv,{curve_csv},{tmp_path / 'run_a'},3,auto,false\n",
+        encoding="utf-8-sig",
+    )
+
+    code = main(["--batch-manifest", str(manifest), "--outdir", str(tmp_path / "batch_out")])
+
+    assert code == 0
+    assert (tmp_path / "run_a" / "summary.json").exists()
+
+
 def test_run_pipeline_review_artifact_profile_skips_heavy_outputs_for_pass_run(tmp_path):
     curve_csv = tmp_path / "curves.csv"
     with curve_csv.open("w", encoding="utf-8", newline="") as handle:

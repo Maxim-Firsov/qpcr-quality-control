@@ -241,14 +241,13 @@ Single-run CLI default behavior uses `--artifact-profile full`, so every per-run
 Batch Snakemake mode defaults to `review` profile and treats artifacts in tiers:
 
 - always-on compact outputs: `summary.json`, `run_metadata.json`, `plate_qc_summary.json`, `rerun_manifest.csv`
-- conditional detailed outputs: `well_calls.csv`
-- heavy reviewer-facing outputs: `report.html`
+- tracked reviewer-facing artifacts: `well_calls.csv`, `report.html`
 - batch packet outputs: `batch_master.json`, `batch_master.tsv`, `rerun_queue.csv`, `failure_reason_counts.tsv`, `batch_gate_status.json`, `batch_report.md`
 
 Artifact profile behavior:
 
-- `minimal`: always writes compact per-run outputs and batch outputs, skips `report.html`, and only writes `well_calls.csv` for `rerun` runs
-- `review`: default workflow mode; writes compact per-run outputs for every run and only writes `well_calls.csv` plus `report.html` for `review` or `rerun` runs
+- `minimal`: always writes compact per-run outputs and batch outputs; reviewer-facing artifacts are only populated with full content for rerun runs, but workflow mode still tracks their paths for recovery
+- `review`: default workflow mode; writes compact per-run outputs for every run, generates rich `well_calls.csv` plus `report.html` for `review` or `rerun` runs, and may recreate lightweight placeholders for non-flagged runs so Snakemake can detect missing tracked artifacts
 - `full`: writes all per-run outputs for every run
 
 Recommended first-read artifacts:
