@@ -6,6 +6,11 @@ Deterministic qPCR quality control for RDML and canonical curve CSV inputs.
 
 `qpcr-quality-control` is a command-line tool for reviewing amplification traces, applying explicit QC rules, and writing auditable outputs for downstream review or workflow gating. The project is designed for transparent rule-based behavior: thresholds, control logic, normalization choices, and escalation reasons are visible in the outputs rather than hidden behind opaque instrument software.
 
+The repository now has two operational layers:
+
+- single-run CLI mode for one RDML file, one RDML directory, or one canonical curve CSV analysis
+- Snakemake batch mode for manifest-driven dispatch, resumability, selective artifact generation, rerun consolidation, and final batch handoff packets
+
 ## What It Does
 
 - ingests RDML files, including plain XML and ZIP-container `.rdml` files
@@ -45,6 +50,12 @@ Standard install from a clone:
 python -m pip install .
 ```
 
+Install workflow support for Snakemake batch release mode:
+
+```powershell
+python -m pip install -e .[workflow]
+```
+
 If the installed `qpcr-quality-control` script is not on your `PATH`, invoke the CLI with:
 
 ```powershell
@@ -65,6 +76,21 @@ Primary review artifacts:
 - `outputs/demo_stepone_std/run_metadata.json`
 - `outputs/demo_stepone_std/well_calls.csv`
 - `outputs/demo_stepone_std/report.html`
+
+Run the bundled Snakemake batch demo:
+
+```powershell
+python -m snakemake --snakefile Snakefile --cores 1 --configfile workflow\config\batch_config.yaml
+```
+
+Primary batch handoff artifacts:
+
+- `outputs/snakemake_demo_batch/batch_master.json`
+- `outputs/snakemake_demo_batch/batch_master.tsv`
+- `outputs/snakemake_demo_batch/rerun_queue.csv`
+- `outputs/snakemake_demo_batch/failure_reason_counts.tsv`
+- `outputs/snakemake_demo_batch/batch_gate_status.json`
+- `outputs/snakemake_demo_batch/batch_report.md`
 
 ## Common Usage
 
@@ -104,18 +130,16 @@ QC threshold override:
 python -m src.cli --rdml data\raw\stepone_std.rdml --outdir outputs\run_thresholds --min-cycles 25 --plate-schema 96 --confidence-threshold 0.7 --late-ct-threshold 33 --low-signal-threshold 0.2
 ```
 
-Batch manifest mode:
+Artifact profile override for direct CLI use:
 
 ```powershell
-python -m src.cli --batch-manifest batch_runs.csv --outdir outputs\batch
+python -m src.cli --rdml data\raw\stepone_std.rdml --outdir outputs\run_review_profile --plate-schema 96 --artifact-profile review
 ```
 
-Example batch manifest:
+Snakemake batch mode:
 
-```csv
-input_mode,input_path,outdir,min_cycles,plate_schema,allow_empty_run,plate_meta_csv,control_map_config,normalization_profile
-curve_csv,data\fixtures\q4_curves.csv,outputs\batch_run_001,3,96,false,data\fixtures\q4_plate_meta.csv,,auto
-rdml,data\raw\stepone_std.rdml,outputs\batch_run_002,25,96,false,,,auto
+```powershell
+python -m snakemake --snakefile Snakefile --cores 1 --configfile workflow\config\batch_config.yaml
 ```
 
 Workflow gating:
@@ -126,19 +150,41 @@ python -m src.cli --curve-csv data\fixtures\q4_curves.csv --outdir outputs\gate_
 python -m src.cli --curve-csv data\fixtures\q4_curves.csv --outdir outputs\gate_run --min-cycles 3 --fail-on-edge-alert
 ```
 
+## Why Snakemake Is Needed
+
+The CLI is the per-run analysis engine. It should stay focused on deterministic ingestion, state calling, QC logic, and run-level serialization.
+
+Snakemake becomes necessary when the operating unit is a batch rather than a single plate review. In that mode we need:
+
+- manifest preflight validation before dispatch
+- stable run directories so finished runs are not recomputed after interruptions
+- selective artifact policies so passing runs do not emit heavyweight reviewer artifacts by default
+- normalized batch aggregation that reads compact machine-readable outputs instead of scraping HTML
+- batch-level release, review, and block decisions plus a final handoff packet for the lab or analyst queue
+
+That is the gap the workflow layer fills.
+
 ## Inputs
 
 Supported execution modes:
 
 - `--rdml <file-or-directory>`
 - `--curve-csv <file>`
-- `--batch-manifest <file>`
+
+Workflow-mode batch input:
+
+- `workflow/manifests/*.tsv` consumed by `Snakefile`
+- required manifest columns: `run_id`, `input_mode`, `input_path`
+- optional manifest columns: `plate_meta_csv`, `control_map_config`, `min_cycles`, `plate_schema`, `allow_empty_run`, threshold overrides, and normalization overrides
+
+Legacy sequential manifest mode remains available through `--batch-manifest <file>`, but the production batch path is the Snakemake workflow.
 
 Optional supporting inputs:
 
 - `--plate-meta-csv <file>`
 - `--control-map-config <file>`
 - `--normalization-config <file>`
+- `--artifact-profile <minimal|review|full>`
 
 Canonical curve CSV expected columns:
 
@@ -171,28 +217,44 @@ Control-map JSON supports rules with:
 - `replicate_group`
 - `sample_group`
 
-Detailed contract documentation is in [docs/io_contract.md](C:/Code/GitPortfolio/qpcr-quality-control/docs/io_contract.md).
+Detailed contract documentation is in [docs/io_contract.md](docs/io_contract.md).
 
 ## Outputs
 
-Each run writes:
+Single-run CLI default behavior uses `--artifact-profile full`, so every per-run artifact is emitted:
 
-- `well_calls.csv`
-- `rerun_manifest.csv`
-- `plate_qc_summary.json`
-- `run_metadata.json`
 - `summary.json`
+- `run_metadata.json`
+- `plate_qc_summary.json`
+- `rerun_manifest.csv`
+- `well_calls.csv`
 - `report.html`
+
+Batch Snakemake mode defaults to `review` profile and treats artifacts in tiers:
+
+- always-on compact outputs: `summary.json`, `run_metadata.json`, `plate_qc_summary.json`, `rerun_manifest.csv`
+- conditional detailed outputs: `well_calls.csv`
+- heavy reviewer-facing outputs: `report.html`
+- batch packet outputs: `batch_master.json`, `batch_master.tsv`, `rerun_queue.csv`, `failure_reason_counts.tsv`, `batch_gate_status.json`, `batch_report.md`
+
+Artifact profile behavior:
+
+- `minimal`: always writes compact per-run outputs and batch outputs, skips `report.html`, and only writes `well_calls.csv` for `rerun` runs
+- `review`: default workflow mode; writes compact per-run outputs for every run and only writes `well_calls.csv` plus `report.html` for `review` or `rerun` runs
+- `full`: writes all per-run outputs for every run
 
 Recommended first-read artifacts:
 
-- `summary.json` for automation and fast status checks
+- `summary.json` for automation, run status, artifact inventory, and fast status checks
 - `well_calls.csv` for well-level review
 - `report.html` for human review
 - `run_metadata.json` for audit, provenance, thresholds, and runtime context
+- `batch_master.json` as the canonical batch deliverable in workflow mode
+- `batch_master.tsv` as the spreadsheet-friendly batch companion
 
 `run_metadata.json` records:
 
+- run identifier and artifact profile
 - input paths and hashes
 - validation summary
 - QC thresholds used
@@ -202,6 +264,19 @@ Recommended first-read artifacts:
 - runtime and stage timings
 - peak traced memory
 - warnings and warning codes
+
+`summary.json` records:
+
+- `run_id`
+- `execution_status`
+- `run_status`
+- `artifact_profile`
+- pass/review/rerun counts
+- warning inventory
+- status-reason counts
+- artifact inventory
+
+Workflow-mode batch outputs are aggregated from compact machine-readable artifacts and do not depend on `report.html`.
 
 `report.html` includes:
 
@@ -249,10 +324,11 @@ The repository includes:
 
 Primary references:
 
-- [VALIDATION.md](C:/Code/GitPortfolio/qpcr-quality-control/VALIDATION.md)
-- [RESULTS.md](C:/Code/GitPortfolio/qpcr-quality-control/RESULTS.md)
-- [docs/data_sources.md](C:/Code/GitPortfolio/qpcr-quality-control/docs/data_sources.md)
-- [docs/io_contract.md](C:/Code/GitPortfolio/qpcr-quality-control/docs/io_contract.md)
+- [VALIDATION.md](VALIDATION.md)
+- [RESULTS.md](RESULTS.md)
+- [docs/data_sources.md](docs/data_sources.md)
+- [docs/io_contract.md](docs/io_contract.md)
+- [docs/workflow_mode.md](docs/workflow_mode.md)
 
 Quality checks used in development:
 
@@ -263,7 +339,7 @@ powershell -ExecutionPolicy Bypass -File scripts\deep_sweep.ps1
 
 ## Performance
 
-Current public spot benchmarks are documented in [RESULTS.md](C:/Code/GitPortfolio/qpcr-quality-control/RESULTS.md).
+Current public spot benchmarks are documented in [RESULTS.md](RESULTS.md).
 
 At the documented baseline:
 
@@ -285,6 +361,8 @@ These measurements are development-machine observations, not platform-wide guara
 ## Repository Layout
 
 - `src/` implementation
+- `workflow/` Snakemake config and manifest examples
+- `Snakefile` batch orchestration entrypoint
 - `tests/` unit, integration, and contract coverage
 - `data/raw/` RDML fixtures and provenance manifest
 - `data/fixtures/` synthetic validation fixtures
