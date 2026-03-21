@@ -51,6 +51,8 @@ RERUN_FIELDS = [
     "recommended_action",
 ]
 
+ARTIFACT_PROFILES = ("minimal", "review", "full")
+
 
 def _warning(code: str, message: str, severity: str = "warning") -> dict:
     return {"code": code, "message": message, "severity": severity}
@@ -61,10 +63,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--curve-csv", required=False, help="Canonical curve CSV input path.")
     mode.add_argument("--rdml", required=False, help="RDML file or directory path.")
-    mode.add_argument("--batch-manifest", required=False, help="CSV manifest describing multiple pipeline runs.")
+    mode.add_argument(
+        "--batch-manifest",
+        required=False,
+        help="Legacy sequential CSV manifest path. Prefer the Snakemake workflow for resumable batch orchestration.",
+    )
     parser.add_argument("--plate-meta-csv", required=False, help="Optional plate metadata CSV path.")
     parser.add_argument("--control-map-config", required=False, help="Optional JSON control-map config for assay-specific layouts.")
     parser.add_argument("--outdir", required=True, help="Output directory.")
+    parser.add_argument("--run-id", required=False, help="Optional stable run identifier override.")
     parser.add_argument("--min-cycles", type=int, default=3, help="Minimum cycles per well-target.")
     parser.add_argument("--confidence-threshold", type=float, default=0.6, help="Minimum mean state confidence before a call is downgraded to review.")
     parser.add_argument("--late-ct-threshold", type=float, default=35.0, help="Ct threshold at or above which amplification is marked late.")
@@ -91,6 +98,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--normalization-config",
         required=False,
         help="Optional JSON config path for normalization profiles.",
+    )
+    parser.add_argument(
+        "--artifact-profile",
+        choices=ARTIFACT_PROFILES,
+        default="full",
+        help="Artifact generation policy. 'full' is the direct CLI default; workflow mode typically uses 'review'.",
     )
     parser.add_argument("--fail-on-review", action="store_true", help="Exit non-zero if any well-target is marked review.")
     parser.add_argument("--fail-on-rerun", action="store_true", help="Exit non-zero if any well-target is marked rerun.")
@@ -143,6 +156,74 @@ def _hash_input_path(path_text: str) -> str:
     return ""
 
 
+def _resolved_run_id(raw_rows: list[dict], outdir: Path, override: str | None = None) -> str:
+    if override:
+        return override
+    run_ids = sorted({str(row.get("run_id") or "").strip() for row in raw_rows if str(row.get("run_id") or "").strip()})
+    if len(run_ids) == 1:
+        return run_ids[0]
+    if len(run_ids) > 1:
+        return outdir.name
+    return outdir.name
+
+
+def _run_status(global_counts: dict[str, int]) -> str:
+    if int(global_counts.get("rerun", 0)) > 0:
+        return "rerun"
+    if int(global_counts.get("review", 0)) > 0:
+        return "review"
+    return "pass"
+
+
+def _status_reason_counts(well_calls: list[dict]) -> list[dict]:
+    reason_counts: dict[str, dict[str, int]] = {}
+    for row in well_calls:
+        status = row["qc_status"]
+        if status == "pass":
+            continue
+        for reason in json.loads(row["qc_flags"]):
+            bucket = reason_counts.setdefault(reason, {"review_count": 0, "rerun_count": 0, "well_count": 0})
+            bucket[f"{status}_count"] += 1
+            bucket["well_count"] += 1
+    return [
+        {"reason": reason, **reason_counts[reason]}
+        for reason in sorted(reason_counts)
+    ]
+
+
+def _artifact_policy(profile: str, run_status: str) -> dict[str, bool]:
+    if profile == "full":
+        return {"write_well_calls": True, "write_report_html": True}
+    if profile == "review":
+        flagged = run_status in {"review", "rerun"}
+        return {"write_well_calls": flagged, "write_report_html": flagged}
+    return {"write_well_calls": run_status == "rerun", "write_report_html": False}
+
+
+def _artifact_inventory(outdir: Path, profile: str, decisions: dict[str, bool]) -> dict[str, dict[str, str | bool]]:
+    inventory: dict[str, dict[str, str | bool]] = {}
+    for name in [
+        "summary.json",
+        "run_metadata.json",
+        "plate_qc_summary.json",
+        "rerun_manifest.csv",
+        "well_calls.csv",
+        "report.html",
+    ]:
+        generated = name == "summary.json" or (outdir / name).exists()
+        reason = "always_on"
+        if name == "well_calls.csv" and not decisions["write_well_calls"]:
+            reason = f"omitted_by_{profile}_profile"
+        elif name == "report.html" and not decisions["write_report_html"]:
+            reason = f"omitted_by_{profile}_profile"
+        inventory[name] = {
+            "generated": generated,
+            "path": str(outdir / name),
+            "reason": reason,
+        }
+    return inventory
+
+
 def run_pipeline(args: argparse.Namespace) -> dict:
     tracemalloc.start()
     started = time.perf_counter()
@@ -150,6 +231,9 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     stage_timings: dict[str, float] = {}
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
+    artifact_profile = str(getattr(args, "artifact_profile", "full") or "full")
+    if artifact_profile not in ARTIFACT_PROFILES:
+        raise ValueError(f"Unsupported artifact profile: {artifact_profile!r}")
 
     rdml_arg = getattr(args, "rdml", None)
     curve_csv_arg = getattr(args, "curve_csv", None)
@@ -166,6 +250,7 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         raw = load_curve_csv(curve_csv_arg)
         execution_mode = "curve_csv"
     stage_timings["ingest_seconds"] = round(time.perf_counter() - stage_started, 6)
+    run_id = _resolved_run_id(raw, outdir, override=getattr(args, "run_id", None))
 
     stage_started = time.perf_counter()
     normalized = normalize_rows(raw)
@@ -252,12 +337,17 @@ def run_pipeline(args: argparse.Namespace) -> dict:
             )
         )
     stage_timings["postprocess_seconds"] = round(time.perf_counter() - stage_started, 6)
+    run_status = _run_status(plate_summary["global_counts"])
+    reason_counts = _status_reason_counts(well_calls)
+    artifact_decisions = _artifact_policy(artifact_profile, run_status)
 
     metadata = {
         "schema_version": "v0.1.0",
         "tool_version": "0.1.0",
+        "run_id": run_id,
         "execution_mode": execution_mode,
         "plate_schema": args.plate_schema,
+        "artifact_profile": artifact_profile,
         "qc_thresholds": {
             "confidence_threshold": float(getattr(args, "confidence_threshold", 0.6)),
             "late_ct_threshold": float(getattr(args, "late_ct_threshold", 35.0)),
@@ -308,17 +398,29 @@ def run_pipeline(args: argparse.Namespace) -> dict:
     }
 
     stage_started = time.perf_counter()
-    write_csv(outdir / "well_calls.csv", well_calls, WELL_CALL_FIELDS)
     write_csv(outdir / "rerun_manifest.csv", rerun_manifest, RERUN_FIELDS)
     write_json(outdir / "plate_qc_summary.json", plate_summary)
     write_json(outdir / "run_metadata.json", metadata)
     summary_payload = {
         "schema_version": "v0.1.0",
         "generated_at_utc": generated_at_utc,
+        "run_id": run_id,
+        "execution_status": "succeeded",
         "execution_mode": execution_mode,
         "plate_schema": args.plate_schema,
+        "artifact_profile": artifact_profile,
+        "run_status": run_status,
+        "plate_count": len(plate_summary["plates"]),
+        "pass_count": int(plate_summary["global_counts"]["pass"]),
+        "review_count": int(plate_summary["global_counts"]["review"]),
+        "rerun_count": int(plate_summary["global_counts"]["rerun"]),
+        "rerun_well_count": len(rerun_manifest),
+        "warning_count": len(warnings),
+        "warnings": warnings,
+        "status_reason_counts": reason_counts,
         "counts": {
             "well_calls": len(well_calls),
+            "well_calls_written": 0,
             "rerun_manifest": len(rerun_manifest),
             "plate_count": len(plate_summary["plates"]),
             "raw_rows": len(raw),
@@ -330,18 +432,32 @@ def run_pipeline(args: argparse.Namespace) -> dict:
         "peak_memory_mb": peak_memory_mb,
         "warning_codes": metadata["warning_codes"],
     }
+    if artifact_decisions["write_well_calls"]:
+        write_csv(outdir / "well_calls.csv", well_calls, WELL_CALL_FIELDS)
+        summary_payload["counts"]["well_calls_written"] = len(well_calls)
+    if artifact_decisions["write_report_html"]:
+        (outdir / "report.html").write_text(
+            render_report(plate_summary, well_calls=well_calls, curve_rows=inferred),
+            encoding="utf-8",
+        )
+    summary_payload["artifact_inventory"] = _artifact_inventory(outdir, artifact_profile, artifact_decisions)
     write_json(outdir / "summary.json", summary_payload)
-    (outdir / "report.html").write_text(render_report(plate_summary, well_calls=well_calls, curve_rows=inferred), encoding="utf-8")
     stage_timings["export_seconds"] = round(time.perf_counter() - stage_started, 6)
     metadata["stage_timings_seconds"] = stage_timings
+    metadata["artifact_inventory"] = summary_payload["artifact_inventory"]
     write_json(outdir / "run_metadata.json", metadata)
 
     return {
+        "run_id": run_id,
+        "run_status": run_status,
+        "artifact_profile": artifact_profile,
         "well_calls": len(well_calls),
+        "well_calls_written": summary_payload["counts"]["well_calls_written"],
         "rerun_manifest": len(rerun_manifest),
         "plate_count": len(plate_summary["plates"]),
         "global_counts": plate_summary["global_counts"],
         "edge_alert_plates": [plate["plate_id"] for plate in plate_summary["plates"] if plate.get("edge_effect_alert")],
+        "artifact_inventory": summary_payload["artifact_inventory"],
         "summary_path": str(outdir / "summary.json"),
     }
 
@@ -373,6 +489,7 @@ def run_batch_manifest(args: argparse.Namespace) -> dict:
         if input_mode not in {"rdml", "curve_csv"}:
             raise ValueError(f"Unsupported input_mode in batch manifest row {index}: {input_mode!r}")
         run_args = argparse.Namespace(
+            run_id=row.get("run_id") or f"batch_run_{index:03d}",
             rdml=row.get("input_path") if input_mode == "rdml" else None,
             curve_csv=row.get("input_path") if input_mode == "curve_csv" else None,
             plate_meta_csv=row.get("plate_meta_csv") or None,
@@ -388,6 +505,7 @@ def run_batch_manifest(args: argparse.Namespace) -> dict:
             replicate_ct_outlier_threshold=float(row.get("replicate_ct_outlier_threshold") or args.replicate_ct_outlier_threshold),
             normalization_profile=row.get("normalization_profile") or args.normalization_profile,
             normalization_config=row.get("normalization_config") or args.normalization_config,
+            artifact_profile=row.get("artifact_profile") or args.artifact_profile,
         )
         result = run_pipeline(run_args)
         result["manifest_row"] = index

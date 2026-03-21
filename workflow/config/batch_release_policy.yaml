@@ -1,0 +1,6 @@
+{
+  "max_failed_runs_for_release": 0,
+  "max_rerun_wells_for_release": 0,
+  "max_review_wells_for_release": 0,
+  "max_review_runs_for_release": 0
+}

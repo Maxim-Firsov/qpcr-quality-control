@@ -12,6 +12,7 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest>=9.0"]
+workflow = ["snakemake>=8,<9"]
 
 [project.scripts]
 qpcr-quality-control = "src.cli:main"

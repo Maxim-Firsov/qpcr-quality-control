@@ -85,16 +85,42 @@ def test_output_contract_required_columns_and_keys(tmp_path):
         assert key in summary
 
     run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
-    for key in ["schema_version", "generated_at_utc", "execution_mode", "plate_schema", "counts", "global_counts", "timing_seconds", "peak_memory_mb", "warning_codes"]:
+    for key in [
+        "schema_version",
+        "generated_at_utc",
+        "run_id",
+        "execution_status",
+        "execution_mode",
+        "plate_schema",
+        "artifact_profile",
+        "run_status",
+        "plate_count",
+        "pass_count",
+        "review_count",
+        "rerun_count",
+        "rerun_well_count",
+        "warning_count",
+        "warnings",
+        "status_reason_counts",
+        "counts",
+        "global_counts",
+        "timing_seconds",
+        "peak_memory_mb",
+        "warning_codes",
+        "artifact_inventory",
+    ]:
         assert key in run_summary
 
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["run_id"] == "r1"
+    assert metadata["artifact_profile"] == "full"
     assert "hash" in metadata["model_config"]
     assert metadata["plate_schema"] == "auto"
     assert "peak_memory_mb" in metadata
     assert "stage_timings_seconds" in metadata
     assert "warning_codes" in metadata
     assert "qc_thresholds" in metadata
+    assert "artifact_inventory" in metadata
     for key in ["curve_csv_sha256", "rdml_sha256", "plate_meta_csv_sha256"]:
         assert key in metadata["input_hashes"]
 

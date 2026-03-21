@@ -87,6 +87,8 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     assert "stage_timings_seconds" in metadata
     assert "warning_codes" in metadata
     assert metadata["input_snapshot_date"] != "1970-01-01"
+    assert metadata["run_id"] == "r1"
+    assert metadata["artifact_profile"] == "full"
     assert metadata["normalization"]["requested_profile"] == "auto"
     assert metadata["normalization"]["config_sha256"]
     assert metadata["control_map"]["config_path"] == ""
@@ -95,8 +97,14 @@ def test_pipeline_cli_mode_writes_all_outputs(tmp_path):
     assert metadata["qc_thresholds"]["replicate_ct_outlier_threshold"] == 1.5
 
     run_summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
+    assert run_summary["run_id"] == "r1"
+    assert run_summary["execution_status"] == "succeeded"
+    assert run_summary["artifact_profile"] == "full"
+    assert run_summary["run_status"] in {"pass", "review", "rerun"}
     assert run_summary["counts"]["well_calls"] == 1
+    assert run_summary["counts"]["well_calls_written"] == 1
     assert run_summary["global_counts"]["pass"] >= 0
+    assert run_summary["artifact_inventory"]["report.html"]["generated"] is True
     report_html = (outdir / "report.html").read_text(encoding="utf-8")
     assert "Plate Heatmaps" in report_html
     assert "Curve Drilldowns" in report_html
@@ -390,3 +398,42 @@ def test_main_batch_manifest_propagates_threshold_overrides(tmp_path):
     assert metadata["qc_thresholds"]["confidence_threshold"] == 0.9
     assert metadata["qc_thresholds"]["late_ct_threshold"] == 22.0
     assert metadata["qc_thresholds"]["low_signal_threshold"] == 0.99
+
+
+def test_run_pipeline_review_artifact_profile_skips_heavy_outputs_for_pass_run(tmp_path):
+    curve_csv = tmp_path / "curves.csv"
+    with curve_csv.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["run_id", "plate_id", "well_id", "sample_id", "target_id", "cycle", "fluorescence"],
+        )
+        writer.writeheader()
+        writer.writerows(
+            [
+                {"run_id": "run_pass", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 1, "fluorescence": 0.1},
+                {"run_id": "run_pass", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 2, "fluorescence": 0.5},
+                {"run_id": "run_pass", "plate_id": "p1", "well_id": "A1", "sample_id": "sample1", "target_id": "target1", "cycle": 3, "fluorescence": 1.0},
+            ]
+        )
+
+    outdir = tmp_path / "out"
+    result = run_pipeline(
+        Namespace(
+            curve_csv=str(curve_csv),
+            rdml=None,
+            plate_meta_csv=None,
+            outdir=str(outdir),
+            min_cycles=3,
+            allow_empty_run=False,
+            plate_schema="auto",
+            artifact_profile="review",
+        )
+    )
+
+    assert result["artifact_profile"] == "review"
+    assert result["run_status"] == "pass"
+    assert not (outdir / "well_calls.csv").exists()
+    assert not (outdir / "report.html").exists()
+    summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
+    assert summary["artifact_inventory"]["well_calls.csv"]["generated"] is False
+    assert summary["artifact_inventory"]["report.html"]["generated"] is False

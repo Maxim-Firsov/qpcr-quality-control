@@ -56,19 +56,34 @@ def test_v010_output_schema_compatibility(tmp_path):
 
     summary = json.loads((outdir / "summary.json").read_text(encoding="utf-8"))
     assert sorted(summary.keys()) == [
+        "artifact_inventory",
+        "artifact_profile",
         "counts",
         "execution_mode",
+        "execution_status",
         "generated_at_utc",
         "global_counts",
+        "pass_count",
         "peak_memory_mb",
+        "plate_count",
         "plate_schema",
+        "rerun_count",
+        "rerun_well_count",
+        "review_count",
+        "run_id",
+        "run_status",
         "schema_version",
+        "status_reason_counts",
         "timing_seconds",
         "warning_codes",
+        "warning_count",
+        "warnings",
     ]
 
     metadata = json.loads((outdir / "run_metadata.json").read_text(encoding="utf-8"))
     assert sorted(metadata.keys()) == [
+        "artifact_inventory",
+        "artifact_profile",
         "control_map",
         "data_validation_summary",
         "execution_mode",
@@ -82,6 +97,7 @@ def test_v010_output_schema_compatibility(tmp_path):
         "plate_schema",
         "qc_thresholds",
         "record_counts",
+        "run_id",
         "schema_version",
         "stage_timings_seconds",
         "timing_seconds",

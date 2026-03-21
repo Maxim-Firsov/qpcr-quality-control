@@ -1,0 +1,3 @@
+run_id	input_mode	input_path	plate_meta_csv	min_cycles	plate_schema	allow_empty_run
+demo_review	curve_csv	data/fixtures/q4_curves.csv	data/fixtures/q4_plate_meta.csv	3	96	false
+demo_release	rdml	data/raw/stepone_std.rdml		25	96	false

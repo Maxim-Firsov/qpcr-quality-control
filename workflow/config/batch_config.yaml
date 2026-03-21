@@ -1,0 +1,6 @@
+{
+  "manifest": "workflow/manifests/demo_batch.tsv",
+  "output_root": "outputs/snakemake_demo_batch",
+  "artifact_profile": "review",
+  "gate_config": "workflow/config/batch_release_policy.yaml"
+}
